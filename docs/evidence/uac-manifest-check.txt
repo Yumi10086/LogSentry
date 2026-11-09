@@ -1,0 +1,22 @@
+LogSentry 清单（manifest）校验 —— 静态证据
+生成时间: 2026-11-05 17:41:54
+被测文件: dist\LogSentry.exe
+大小    : 120832 bytes
+SHA256  : FCF3F4A9CC1C5E54BFB6C22E2B914DFF0C3B37DD6F03FF51475D866582A1F070
+
+用 ASCII 扫描整个 PE 的嵌入清单（注意：用 Encoding.Unicode 扫会得到假阴性）:
+
+requireAdministrator            : True
+uiAccess="false"                : True
+supportedOS Win10/11 (8e0f7a12): True
+supportedOS Win8.1  (1f676c76): True
+supportedOS Win7    (35138b9a): True
+dpiAware                        : True
+
+运行时佐证: 非管理员会话里用 Process.Start(UseShellExecute=false) 启动本程序会抛
+"请求的操作需要提升。" —— 这正是 requireAdministrator 生效的表现。
+
+打包产物: dist\LogSentry_Portable.exe 1127755 bytes
+SHA256  : 52ED5925AD89919ADCFCABD45D53631B16E950E1D8A9474520C09EBD90275C06
+载荷    : %TEMP%\7zSxxxxx.tmp\LogSentry\{LogSentry.exe, LogParser.exe, LogParser.chm, queries.txt, 使用说明.txt}
+          五个文件 SHA256 与 dist 同名文件逐一 MATCH（7z x .pkg\payload.7z 复核）

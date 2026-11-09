@@ -1,0 +1,56 @@
+=== LogSentry 自动化冒烟 ===
+Form.Text        = LogSentry · Windows 日志一把梭分析
+ClientSize       = 1180x760
+CheckboxCount    = 29
+Elevated         = False
+OutputEncoding   = CP936
+Splitter         = Distance=430 Width=1180 Panel1=430 Panel2=744 Panel1Min=320 Panel2Min=320
+Panel1Preferred  = 0
+Panel2Preferred  = 0
+Fit.Combo        = "NAT" width=185 need=65 ok=True
+Fit.Combo        = "" width=382 need=395 ok=True (历史命令按设计截断)
+Fit.Combo        = "最近 24 小时" width=128 need=108 ok=True
+Fit.Picker       = "2026-11-06" width=110 need=102 ok=True
+Fit.Combo        = "11" width=66 need=52 ok=True
+Fit.Combo        = "34" width=66 need=52 ok=True
+Fit.Picker       = "2026-11-07" width=110 need=102 ok=True
+Fit.Combo        = "11" width=66 need=52 ok=True
+Fit.Combo        = "34" width=66 need=52 ok=True
+Fit.Header       = children=5 height=56 overlaps=0 ok=True
+Fit.Manual       = pageW=402 maxRight=118 overflow=0 txtH=198 ok=True
+Fit.ManualDiag   = cboHistory.Width=382 chain: ComboBox(cboHistory)=382/382 TableLayoutPanel(-)=382/382 Panel(-)=382/382 TabPage(-)=402/402 TabControl(-)=410/410 Panel(-)=430/430 SplitterPanel(-)=430/430 SplitContainer(-)=1180/1180 MainForm(-)=1196/1180 
+Screenshot       = C:\Users\KK\AppData\Local\Temp\ls_man_1dd1f385df8e4e40ab069531b9db3c52\ui-1-before.png (94597 bytes, printwindow)
+Splitter         = Distance=622 Width=1707 Panel1=622 Panel2=1079 Panel1Min=320 Panel2Min=320
+Panel1Preferred  = 0
+Panel2Preferred  = 0
+Screenshot       = C:\Users\KK\AppData\Local\Temp\ls_man_1dd1f385df8e4e40ab069531b9db3c52\ui-3-maximized.png (185676 bytes, printwindow)
+ManualTab        = 已切换到「手动命令」页
+ManualInput      = -i:EVT -o:NAT -rtp:-1 "SELECT TimeGenerated, EventID, EXTRACT_TOKEN(Strings, 0, '|') AS 服务名 FROM System WHERE EventID = 7045"
+ManualParse      = 解析：输入格式 EVT · 输出格式 NAT · 参数 -i:EVT -o:NAT -rtp:-1 / 语句长度 101 字符
+Screenshot       = C:\Users\KK\AppData\Local\Temp\ls_man_1dd1f385df8e4e40ab069531b9db3c52\ui-5-manual.png (149646 bytes, printwindow)
+UI stayed alive  = True
+Result.Ok        = 1
+Result.Fail      = 0
+Result.Hit       = 1
+StatusBar        = 完成 | 已选 6 项 · 累计处理 41555 条事件 | ✖ 非管理员（Security 日志可能读取失败）
+Screenshot       = C:\Users\KK\AppData\Local\Temp\ls_man_1dd1f385df8e4e40ab069531b9db3c52\ui-2-after.png (360097 bytes, printwindow)
+ResultsFile      = C:\Users\KK\AppData\Local\Temp\ls_man_1dd1f385df8e4e40ab069531b9db3c52\ui-results.txt (9654 bytes)
+FirstLines:
+  | ==========================================================
+  |  LogSentry 手动命令执行   2026-11-07 11:34:52
+  |  程序目录 : E:\文件\项目\Windows日志筛选工具\dist\
+  |  LogParser: E:\文件\项目\Windows日志筛选工具\dist\LogParser.exe
+  |  配置文件 : E:\文件\项目\Windows日志筛选工具\dist\queries.txt
+  |  模式     : 手动命令（命令行里的参数优先于“参数与超时”页）
+  |  参数     : -i:EVT -o:NAT -rtp:-1
+  |  输出格式 : NAT
+  |  时间范围 : 全部（未启用时间筛选）
+  | ==========================================================
+  | 
+  | 
+ChineseOK        = True
+RESULT           = OK
+StatusItem[0]    = "完成"
+StatusItem[1]    = "已选 6 项 · 累计处理 41555 条事件"
+StatusItem[2]    = ""
+StatusItem[3]    = "✖ 非管理员（Security 日志可能读取失败）"

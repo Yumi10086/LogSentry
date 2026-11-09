@@ -1,0 +1,46 @@
+=== LogSentry 自动化冒烟 ===
+Form.Text        = LogSentry · Windows 日志一把梭分析
+ClientSize       = 1180x760
+CheckboxCount    = 28
+Elevated         = False
+OutputEncoding   = CP936
+Splitter         = Distance=430 Width=1180 Panel1=430 Panel2=744 Panel1Min=320 Panel2Min=320
+Panel1Preferred  = 0
+Panel2Preferred  = 0
+Fit.Combo        = "NAT" width=438 need=65 ok=True
+Fit.Combo        = "最近 24 小时" width=128 need=108 ok=True
+Fit.Picker       = "2026-11-04" width=110 need=102 ok=True
+Fit.Combo        = "17" width=66 need=52 ok=True
+Fit.Combo        = "38" width=66 need=52 ok=True
+Fit.Picker       = "2026-11-05" width=110 need=102 ok=True
+Fit.Combo        = "17" width=66 need=52 ok=True
+Fit.Combo        = "38" width=66 need=52 ok=True
+Fit.Header       = children=5 height=56 overlaps=0 ok=True
+Screenshot       = .\ui-1-before.png (97599 bytes, printwindow)
+OutputFormat     = XML
+UI stayed alive  = True
+Result.Ok        = 1
+Result.Fail      = 0
+Result.Hit       = 1
+StatusBar        = 完成 | 已选 1 项 · 累计处理 0 条事件 | ✖ 非管理员（Security 日志可能读取失败）
+Screenshot       = .\ui-2-after.png (117738 bytes, printwindow)
+ResultsFile      = .\ui-results.txt (787 bytes)
+FirstLines:
+  | ==========================================================
+  |  LogSentry 一把梭分析   2026-11-05 17:38:23
+  |  程序目录 : E:\文件\项目\Windows日志筛选工具\dist\
+  |  LogParser: E:\文件\项目\Windows日志筛选工具\dist\LogParser.exe
+  |  配置文件 : E:\文件\项目\Windows日志筛选工具\dist\queries.txt
+  |  检测项数 : 1
+  |  时间范围 : 全部（未启用时间筛选）
+  | ==========================================================
+  | 
+  | 
+  | [*] 1/1  系统日志清除 (104)  [System · 104]
+  |     命中 0 行    耗时：0.47s
+ChineseOK        = True
+RESULT           = OK
+StatusItem[0]    = "完成"
+StatusItem[1]    = "已选 1 项 · 累计处理 0 条事件"
+StatusItem[2]    = ""
+StatusItem[3]    = "✖ 非管理员（Security 日志可能读取失败）"

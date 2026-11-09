@@ -1,0 +1,43 @@
+# 编译与打包的中间产物（由 build.ps1 / pack-sfx.ps1 生成，不入库）
+.pkg/
+backup_*/
+_*_backup*/*
+
+# 根目录下的冒烟临时产物（--smoke 自动生成）
+/ui-*.png
+/ui-results.txt
+/smoke.log
+
+# 本地构建缓存
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.cache
+/build/
+/obj/
+/bin/
+*.pdb
+*.ilk
+*.tmp
+*.bak
+*.orig
+*.log.bak
+
+# 编辑器 / 系统
+.vs/
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+
+# 熔断备份目录（本地回滚用）
+_backup_*/
+
+
+# SFX 打包用的 7-Zip 二进制（本地缓存，可由 7-Zip 官网重新下载）
+.tools/
+
+# 冒烟日志
+docs/evidence/smoke.log
+

@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    备选构建方式（推荐）：本机装有 .NET SDK 时可用
+        dotnet build LogSentry.csproj -c Release
+    产物：bin\Release\net48\LogSentry.exe（依赖系统自带 .NET Framework 4.x，无需额外运行时）
+
+    没有 SDK 时用 build.ps1：它调用系统自带的 csc.exe（固定 C# 5 语法）直接编译，
+    同样产出 WinForms exe，且产物体积更小、对老系统（Win7 / XP SP3）更友好。
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>LogSentry</RootNamespace>
+    <AssemblyName>LogSentry</AssemblyName>
+    <ApplicationManifest>src\app.manifest</ApplicationManifest>
+    <!-- 版本信息写在 src\AssemblyInfo.cs 里（csc 与 MSBuild 共用同一份，避免两处不一致） -->
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <LangVersion>7.3</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <DebugType>none</DebugType>
+    <Platforms>AnyCPU</Platforms>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="src\*.cs" Exclude="src\SelfTest.cs" />
+  </ItemGroup>
+
+</Project>

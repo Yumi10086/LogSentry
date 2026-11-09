@@ -1,0 +1,144 @@
+=== LogSentry 自检 ===
+OutputEncoding.CodePage = 936
+LogParser = E:\文件\项目\Windows日志筛选工具\dist\LogParser.exe  exists=True
+[1] 配置 = E:\文件\项目\Windows日志筛选工具\dist\queries.txt
+[1] 配置项 = 26  警告 = 0
+    PASS 配置项数量 >= 8
+    PASS 每条都有 Id/Label/Query
+    PASS 每条 Id 唯一
+[1b] queries.txt 7911 字符 / BuiltinQueries 7911 字符 / 一致=True
+    PASS queries.txt 与内置默认配置一致
+[2] Arguments = -i:EVT -o:NAT -q:on "SELECT 1 FROM System WHERE \"Name\"='x'"
+    PASS 参数含 -i:EVT
+    PASS 引号转义
+[3] FAIL  logon_success          0.07s  权限不足：读取 Security 日志需要管理员权限。请右键“以管理员身份运行”，或确认 app.manifest 的 requireAdministrator 生效。原始信息：Task aborted. Cannot 
+[3] FAIL  logon_fail             0.06s  权限不足：读取 Security 日志需要管理员权限。请右键“以管理员身份运行”，或确认 app.manifest 的 requireAdministrator 生效。原始信息：Task aborted. Cannot 
+[3] FAIL  logon_explicit         0.05s  权限不足：读取 Security 日志需要管理员权限。请右键“以管理员身份运行”，或确认 app.manifest 的 requireAdministrator 生效。原始信息：Task aborted. Cannot 
+[3] FAIL  logon_network_cleartext 0.05s  权限不足：读取 Security 日志需要管理员权限。请右键“以管理员身份运行”，或确认 app.manifest 的 requireAdministrator 生效。原始信息：Task aborted. Cannot 
+[3] FAIL  session_disconnect     0.05s  权限不足：读取 Security 日志需要管理员权限。请右键“以管理员身份运行”，或确认 app.manifest 的 requireAdministrator 生效。原始信息：Task aborted. Cannot 
+[3] FAIL  account_created        0.05s  权限不足：读取 Security 日志需要管理员权限。请右键“以管理员身份运行”，或确认 app.manifest 的 requireAdministrator 生效。原始信息：Task aborted. Cannot 
+[3] FAIL  account_enabled        0.05s  权限不足：读取 Security 日志需要管理员权限。请右键“以管理员身份运行”，或确认 app.manifest 的 requireAdministrator 生效。原始信息：Task aborted. Cannot 
+[3] FAIL  account_disabled       0.05s  权限不足：读取 Security 日志需要管理员权限。请右键“以管理员身份运行”，或确认 app.manifest 的 requireAdministrator 生效。原始信息：Task aborted. Cannot 
+[3] FAIL  account_deleted        0.05s  权限不足：读取 Security 日志需要管理员权限。请右键“以管理员身份运行”，或确认 app.manifest 的 requireAdministrator 生效。原始信息：Task aborted. Cannot 
+[3] FAIL  account_added_to_group 0.07s  权限不足：读取 Security 日志需要管理员权限。请右键“以管理员身份运行”，或确认 app.manifest 的 requireAdministrator 生效。原始信息：Task aborted. Cannot 
+[3] FAIL  group_added_to_group   0.06s  权限不足：读取 Security 日志需要管理员权限。请右键“以管理员身份运行”，或确认 app.manifest 的 requireAdministrator 生效。原始信息：Task aborted. Cannot 
+[3] FAIL  password_reset         0.06s  权限不足：读取 Security 日志需要管理员权限。请右键“以管理员身份运行”，或确认 app.manifest 的 requireAdministrator 生效。原始信息：Task aborted. Cannot 
+[3] FAIL  kerberos_rc4           0.06s  权限不足：读取 Security 日志需要管理员权限。请右键“以管理员身份运行”，或确认 app.manifest 的 requireAdministrator 生效。原始信息：Task aborted. Cannot 
+[3] OK    service_install        0.37s  2026-07-29 19:00:41 PRI-Driver                                                                           C:\Wi
+[3] OK    service_start          0.39s  2026-07-29 19:00:41 7009 45000                 Intel(R) Platform License Manager Service
+[3] FAIL  task_created           0.06s  权限不足：读取 Security 日志需要管理员权限。请右键“以管理员身份运行”，或确认 app.manifest 的 requireAdministrator 生效。原始信息：Task aborted. Cannot 
+[3] FAIL  task_updated           0.06s  权限不足：读取 Security 日志需要管理员权限。请右键“以管理员身份运行”，或确认 app.manifest 的 requireAdministrator 生效。原始信息：Task aborted. Cannot 
+[3] FAIL  task_deleted           0.06s  权限不足：读取 Security 日志需要管理员权限。请右键“以管理员身份运行”，或确认 app.manifest 的 requireAdministrator 生效。原始信息：Task aborted. Cannot 
+[3] OK    psExec_service         0.37s  (该检测项在当前日志中没有匹配记录)
+[3] FAIL  share_access           0.05s  权限不足：读取 Security 日志需要管理员权限。请右键“以管理员身份运行”，或确认 app.manifest 的 requireAdministrator 生效。原始信息：Task aborted. Cannot 
+[3] FAIL  dcsync                 0.05s  权限不足：读取 Security 日志需要管理员权限。请右键“以管理员身份运行”，或确认 app.manifest 的 requireAdministrator 生效。原始信息：Task aborted. Cannot 
+[3] FAIL  log_cleared            0.06s  权限不足：读取 Security 日志需要管理员权限。请右键“以管理员身份运行”，或确认 app.manifest 的 requireAdministrator 生效。原始信息：Task aborted. Cannot 
+[3] OK    system_log_cleared     0.40s  (该检测项在当前日志中没有匹配记录)
+[3] FAIL  audit_policy_changed   0.06s  权限不足：读取 Security 日志需要管理员权限。请右键“以管理员身份运行”，或确认 app.manifest 的 requireAdministrator 生效。原始信息：Task aborted. Cannot 
+[3] OK    defender_disabled      0.75s  (该检测项在当前日志中没有匹配记录)
+[3] OK    process_creation_raw   0.14s  2026-07-29 18:50:24 51047 Microsoft-Windows-DHCPv6-Client             1                                       
+[3] 汇总 ok=6 fail=20
+[4] cleaned = <A B\n--- ---\n1 2>
+    PASS 统计块被裁剪
+    PASS 正文保留
+    PASS ProcessedCount
+[5] 空结果 ok=True output=<(该检测项在当前日志中没有匹配记录)>
+    PASS 空结果被视为成功
+[6] 坏查询 ok=False err=查询语句字段名写错（配置 queries.txt 里的列名不存在）。原始信息：(该检测项在当前日志中没有匹配记录) Error: SELECT clause: Syntax Error: unknown field 'N
+    PASS 语法错误被判失败
+    PASS 错误信息含关键字
+[7] Security ok=False msg=权限不足：读取 Security 日志需要管理员权限。请右键“以管理员身份运行”，或确认 app.manifest 的 requireAdministrator 生效。原始信息：Task aborted. Cannot 
+[8] 原始行数=7  原始字节=601  压缩后字节=524
+    | 时间  服务名  映像路径  启动类型 运行账户
+    | ------------------- ---------- ---------------------------------------------- ---- ----
+    | 2026-07-29 19:00:41 PRI-Driver C:\Windows\System32\drivers\PRI-Driver.sys  按需启动
+    PASS 确实压缩了空白
+    PASS 行数不变
+    PASS 没有切丢字符
+    PASS 没有残留的多余空格
+[9] cond = TimeGenerated >= TO_TIMESTAMP('2026-10-01 00:00:00', 'yyyy-MM-dd HH:mm:ss') AND TimeGenerated <= TO_TIMESTAMP('2026-10-31 23:59:59', 'yyyy-MM-dd HH:mm:ss')
+    PASS 时间条件含 TO_TIMESTAMP
+    PASS 时间条件含 >= 与 <=
+    PASS 无时间条件时原样返回
+    | SELECT EventID FROM System WHERE EventID = 7045 AND TimeGenerated >= TO_TIMESTAMP('2026-10-01 00:00:00', 'yyyy-MM-dd HH:mm:ss')
+    PASS 有 WHERE 时用 AND 追加
+    PASS 无 WHERE 时补 WHERE
+    | SELECT EventID FROM System WHERE EventID = 7045 AND TimeGenerated >= TO_TIMESTAMP('2026-10-01 00:00:00', 'yyyy-MM-dd HH:mm:ss') GROUP BY EventID
+    PASS GROUP BY 前插入
+    PASS 字符串字面量里的 ORDER 不被误判
+[9] 全量=212 行  2026-10-20..10-31=25 行  (ok=True/True)
+    PASS 两次查询都成功
+    PASS 时间筛选确实减少了命中
+[10] 导出 CSV / XLSX
+    PASS CSV 解析行数
+    PASS CSV 逗号在引号内不切分
+    PASS CSV 双引号转义还原
+    PASS -rtp 被剥离（CSV 不认该参数）
+    PASS 导出参数自动补 -stats:off
+[10] CSV 行数=213 列数=6
+    PASS CSV 查询成功
+    PASS CSV 至少有一行表头 + 数据
+    PASS CSV 表头 6 列（7045 配置）
+    PASS CSV 尾部统计块已切除
+    PASS XLSX 文件已生成
+    PASS XLSX 是合法 ZIP 且含全部部件
+    PASS XLSX 工作表名支持中文
+    PASS XLSX 单元格已做 XML 转义
+    PASS CSV 导出带 BOM（Excel 中文不乱码）
+    PASS CSV 导出后能原样解析回来
+[11] 五种输出格式（NAT / CSV / TSV / XML / W3C）
+     -o:NAT  ok=True  行数=2  长度=129
+    PASS 输出格式 NAT 可执行（-rtp 自动剥离）
+    PASS 输出格式 NAT 拿到 2 行
+    PASS 输出格式 NAT 无替换符乱码
+     -o:CSV  ok=True  行数=2  长度=89
+    PASS 输出格式 CSV 可执行（-rtp 自动剥离）
+    PASS 输出格式 CSV 拿到 2 行
+    PASS 输出格式 CSV 无替换符乱码
+     -o:TSV  ok=True  行数=2  长度=89
+    PASS 输出格式 TSV 可执行（-rtp 自动剥离）
+    PASS 输出格式 TSV 拿到 2 行
+    PASS 输出格式 TSV 无替换符乱码
+     -o:XML  ok=True  行数=2  长度=669
+    PASS 输出格式 XML 可执行（-rtp 自动剥离）
+    PASS 输出格式 XML 拿到 2 行
+    PASS 输出格式 XML 无替换符乱码
+    PASS XML 里没有 ANSI 统计块残渣
+     -o:W3C  ok=True  行数=2  长度=174
+    PASS 输出格式 W3C 可执行（-rtp 自动剥离）
+    PASS 输出格式 W3C 拿到 2 行
+    PASS 输出格式 W3C 无替换符乱码
+     空结果 -o:NAT  ok=True  输出=<(该检测项在当前日志中没有匹配记录)>
+    PASS 空结果 NAT 显示占位文本
+    PASS 空结果 NAT 没有乱码
+     空结果 -o:CSV  ok=True  输出=<(该检测项在当前日志中没有匹配记录)>
+    PASS 空结果 CSV 显示占位文本
+    PASS 空结果 CSV 没有乱码
+     空结果 -o:TSV  ok=True  输出=<(该检测项在当前日志中没有匹配记录)>
+    PASS 空结果 TSV 显示占位文本
+    PASS 空结果 TSV 没有乱码
+     空结果 -o:XML  ok=True  输出=<(该检测项在当前日志中没有匹配记录)>
+    PASS 空结果 XML 显示占位文本
+    PASS 空结果 XML 没有乱码
+     空结果 -o:W3C  ok=True  输出=<(该检测项在当前日志中没有匹配记录)>
+    PASS 空结果 W3C 显示占位文本
+    PASS 空结果 W3C 没有乱码
+    PASS NAT 保留 -rtp
+    PASS 非 NAT 时 -rtp 被剥离
+[12] 手动命令窗口（命令行解析与执行）
+    PASS 只写 SQL 也能解析
+     只写 SQL → 参数=<> SQL=<SELECT TimeGenerated FROM System WHERE EventID = 7045>
+    PASS 整条命令行能拆出参数与 SQL
+     整条命令行 → 参数=<-i:EVT -o:NAT -rtp:-1> SQL=<SELECT TimeGenerated, EventID FROM System WHERE EventID = 7045>
+    PASS 引号里带空格的 -i: 路径不被切断
+    PASS 引号路径能被 ExtractOptionValue 取出
+     引号路径 → 取出=<C:\Program Files\x\a.evtx> 剩余=<-o:CSV>
+    PASS 命令行里的 -o: 覆盖下拉框且只有一个
+    PASS EffectiveFormat 取附加参数里的 -o:
+     拼装结果 → -i:EVT -o:CSV -st:off "SELECT TimeGenerated FROM System"
+    PASS 命令行里的 -i: 覆盖默认 EVT
+     输入格式覆盖 → -i:EVTX -o:NAT -rtp:-1 "SELECT TimeGenerated FROM System"
+     手动命令执行 ok=True 行数=3 耗时=0.07s
+    PASS 手动命令能跑出结果
+    PASS 手动命令结果无乱码
+=== 全部通过 ===

@@ -1,0 +1,36 @@
+﻿2026/11/5 12:10:22
+程序发生未处理的异常：
+
+InvalidOperationException: SplitterDistance 必须在 Panel1MinSize 和 Width - Panel2MinSize 之间。
+
+   在 System.Windows.Forms.SplitContainer.set_SplitterDistance(Int32 value)
+   在 System.Windows.Forms.SplitContainer.ApplyPanel2MinSize(Int32 value)
+   在 System.Windows.Forms.SplitContainer.set_Panel2MinSize(Int32 value)
+   在 LogSentry.MainForm.BuildUi()
+   在 LogSentry.MainForm..ctor()
+   在 LogSentry.Program.MainCore()
+
+2026/11/5 12:21:51
+程序发生未处理的异常：
+
+InvalidOperationException: SplitterDistance 必须在 Panel1MinSize 和 Width - Panel2MinSize 之间。
+
+   在 System.Windows.Forms.SplitContainer.set_SplitterDistance(Int32 value)
+   在 System.Windows.Forms.SplitContainer.ApplyPanel2MinSize(Int32 value)
+   在 System.Windows.Forms.SplitContainer.set_Panel2MinSize(Int32 value)
+   在 LogSentry.MainForm.BuildUi()
+   在 LogSentry.MainForm..ctor()
+   在 LogSentry.Program.MainCore()
+
+2026/11/5 14:23:01
+程序发生未处理的异常：
+
+InvalidOperationException: SplitterDistance 必须在 Panel1MinSize 和 Width - Panel2MinSize 之间。
+
+   在 System.Windows.Forms.SplitContainer.set_SplitterDistance(Int32 value)
+   在 System.Windows.Forms.SplitContainer.ApplyPanel2MinSize(Int32 value)
+   在 System.Windows.Forms.SplitContainer.set_Panel2MinSize(Int32 value)
+   在 LogSentry.MainForm.BuildUi()
+   在 LogSentry.MainForm..ctor()
+   在 LogSentry.Program.MainCore()
+
