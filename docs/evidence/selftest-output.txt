@@ -1,7 +1,7 @@
-=== LogSentry 自检 ===
+﻿=== LogSentry 自检 ===
 OutputEncoding.CodePage = 936
-LogParser = E:\文件\项目\Windows日志筛选工具\dist\LogParser.exe  exists=True
-[1] 配置 = E:\文件\项目\Windows日志筛选工具\dist\queries.txt
+LogParser = <repo>\dist\LogParser.exe  exists=True
+[1] 配置 = <repo>\dist\queries.txt
 [1] 配置项 = 26  警告 = 0
     PASS 配置项数量 >= 8
     PASS 每条都有 Id/Label/Query

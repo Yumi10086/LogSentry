@@ -1,0 +1,60 @@
+﻿=== LogSentry 自动化冒烟 ===
+SyncContext      = WindowsFormsSynchronizationContext
+Form.Text        = LogSentry · Windows 日志一把梭分析
+ClientSize       = 1180x760
+CheckboxCount    = 29
+Elevated         = False
+OutputEncoding   = CP936
+Splitter         = Distance=430 Width=1180 Panel1=430 Panel2=744 Panel1Min=300 Panel2Min=260
+Panel1Preferred  = 0
+Panel2Preferred  = 0
+Fit.Combo        = "NAT" width=185 need=65 ok=True
+Fit.Combo        = "" width=382 need=395 ok=True (历史命令按设计截断)
+Fit.Combo        = "最近 24 小时" width=128 need=108 ok=True
+Fit.Picker       = "2026-11-08" width=110 need=102 ok=True
+Fit.Combo        = "14" width=66 need=52 ok=True
+Fit.Combo        = "27" width=66 need=52 ok=True
+Fit.Picker       = "2026-11-09" width=110 need=102 ok=True
+Fit.Combo        = "14" width=66 need=52 ok=True
+Fit.Combo        = "27" width=66 need=52 ok=True
+Fit.Header       = children=5 height=56 overlaps=0 ok=True
+Fit.Manual       = pageW=402 maxRight=118 overflow=0 txtH=198 ok=True
+Fit.ManualDiag   = cboHistory.Width=382 chain: ComboBox(cboHistory)=382/382 TableLayoutPanel(-)=382/382 Panel(-)=382/382 TabPage(-)=402/402 TabControl(-)=410/410 Panel(-)=430/430 SplitterPanel(-)=430/430 SplitContainer(-)=1180/1180 MainForm(-)=1196/1180 
+Screenshot       = .\ui-1-before.png (93863 bytes, printwindow)
+Splitter         = Distance=622 Width=1707 Panel1=622 Panel2=1079 Panel1Min=300 Panel2Min=260
+Panel1Preferred  = 0
+Panel2Preferred  = 0
+Screenshot       = .\ui-3-maximized.png (185124 bytes, printwindow)
+TimeFilter       = 最近 240 小时
+UI stayed alive  = True
+Run.Wall         = 执行到完成 0.5s
+Perf.RunOneMs    = LogParser 调用累计 459 ms
+Perf.PrepMs      = 结果预处理（数行/压空格）累计 1 ms
+Perf.AppendMs    = 结果区渲染累计 13 ms / 18 次
+Perf.AppendSplit = 定位/颜色 2 ms，AppendText 11 ms，ScrollToCaret 4 ms
+Perf.MaxFlush    = 最慢一次写入 8 ms / 318 字符；累计写入 4035 字符
+Perf.FlushLog    = 28字符:1ms 100字符:0ms 318字符:8ms 60字符:0ms 4字符:0ms 41字符:0ms 22字符:0ms 186字符:0ms 230字符:0ms 2字符:0ms 39字符:0ms 25字符:0ms 2815字符:0ms 2字符:0ms 60字符:0ms 31字符:0ms 12字符:0ms 60字符:0ms 
+Result.Ok        = 1
+Result.Fail      = 1
+Result.Hit       = 1
+StatusBar        = 完成（有 1 项失败） | 已选 2 项 · 累计处理 41555 条事件 | ✖ 非管理员（Security 日志可能读取失败）
+Screenshot       = .\ui-2-after.png (627887 bytes, printwindow)
+ResultsFile      = .\ui-results.txt (4986 bytes)
+FirstLines:
+  | (正在执行…) 正在启动 LogParser，请稍候
+  | ==========================================================
+  |  LogSentry 一把梭分析   2026-11-09 14:27:20
+  |  程序目录 : <repo>\dist\
+  |  LogParser: <repo>\dist\LogParser.exe
+  |  配置文件 : <repo>\dist\queries.txt
+  |  检测项数 : 2
+  |  时间范围 : TimeGenerated >= TO_TIMESTAMP('2026-10-30 14:27:00', 'yyyy-MM-dd HH:mm:ss') AND TimeGenerated <= TO_TIMESTAMP('2026-11-09 14:27:59', 'yyyy-MM-dd HH:mm:ss')
+  | ==========================================================
+  | 
+  | 
+  | [*] 1/2  登录成功 (4624)  [Security · 4624]
+ChineseOK        = True
+RESULT           = OK(部分项按预期失败)
+StatusItem[0]    = "完成（有 1 项失败）"
+StatusItem[1]    = "已选 2 项 · 累计处理 41555 条事件"
+StatusItem[2]    = ""

@@ -1,4 +1,4 @@
-=== LogSentry 自动化冒烟 ===
+﻿=== LogSentry 自动化冒烟 ===
 SyncContext      = WindowsFormsSynchronizationContext
 Form.Text        = LogSentry · Windows 日志一把梭分析
 ClientSize       = 1180x760
@@ -44,9 +44,9 @@ FirstLines:
   | (正在执行…) 正在启动 LogParser，请稍候
   | ==========================================================
   |  LogSentry 一把梭分析   2026-11-09 14:27:20
-  |  程序目录 : E:\文件\项目\Windows日志筛选工具\dist\
-  |  LogParser: E:\文件\项目\Windows日志筛选工具\dist\LogParser.exe
-  |  配置文件 : E:\文件\项目\Windows日志筛选工具\dist\queries.txt
+  |  程序目录 : <repo>\dist\
+  |  LogParser: <repo>\dist\LogParser.exe
+  |  配置文件 : <repo>\dist\queries.txt
   |  检测项数 : 2
   |  时间范围 : TimeGenerated >= TO_TIMESTAMP('2026-10-30 14:27:00', 'yyyy-MM-dd HH:mm:ss') AND TimeGenerated <= TO_TIMESTAMP('2026-11-09 14:27:59', 'yyyy-MM-dd HH:mm:ss')
   | ==========================================================

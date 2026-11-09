@@ -1,4 +1,4 @@
-=== LogSentry 自动化冒烟 ===
+﻿=== LogSentry 自动化冒烟 ===
 SyncContext      = WindowsFormsSynchronizationContext
 Form.Text        = LogSentry · Windows 日志一把梭分析
 ClientSize       = 1180x760
@@ -48,9 +48,9 @@ FirstLines:
   | (正在执行…) 正在启动 LogParser，请稍候
   | ==========================================================
   |  LogSentry 手动命令执行   2026-11-09 14:27:23
-  |  程序目录 : E:\文件\项目\Windows日志筛选工具\dist\
-  |  LogParser: E:\文件\项目\Windows日志筛选工具\dist\LogParser.exe
-  |  配置文件 : E:\文件\项目\Windows日志筛选工具\dist\queries.txt
+  |  程序目录 : <repo>\dist\
+  |  LogParser: <repo>\dist\LogParser.exe
+  |  配置文件 : <repo>\dist\queries.txt
   |  模式     : 手动命令（命令行里的参数优先于“参数与超时”页）
   |  参数     : -i:EVT -o:NAT -rtp:-1
   |  输出格式 : NAT
