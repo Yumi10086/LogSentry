@@ -16,10 +16,11 @@ namespace LogSentry
 
         public static void MainCore()
         {
-            // 老机器（Win7 未打补丁 / Win8.1 精简版）可能没有 .NET Framework 4.x，
-            // 那样 CLR 根本不会加载到这一行，直接弹「初始化错误」。所以真正的前置检查
-            // 在打包版里由 SFX 的 InstallPath 脚本做（见 pack-sfx.ps1 / 7zSD.sfx 的自解压流程），
-            // 这里只做兜底：当 CLR 能起来但版本低于 4.0 时给出安装指引。
+            // 老机器（Win7 未打补丁 / Win8.1 精简版）可能没有 .NET Framework 4.x：
+            // 那种机器上本程序连这一行都到不了，CLR 会先弹「初始化错误」。
+            // 真正的检测在便携版外壳（src/Launcher.cs）里做：外壳按 .NET 2.0 编译，
+            // 先解压，再确认本机有 4.x，没有就启动随包的原生离线安装包。
+            // 这里只兜底：CLR 能起来但版本低于 4.0 时给出安装指引。
             if (!RuntimeIsUsable())
             {
                 MessageBox.Show(

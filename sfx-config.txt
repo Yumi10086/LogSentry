@@ -1,0 +1,16 @@
+; 7-Zip SFX 配置正文（pack-sfx.ps1 读入后加首尾标记写成 config.txt，UTF-8 无 BOM）。
+; 以分号开头的行会在打包时被过滤掉，可以放心当注释写。
+;
+; 实测结论（2026-11-12）：官方 7z.sfx 是纯 GUI 解压模块，**不解析本段**——
+; 双击后弹 "7-Zip self-extracting archive / Extract to: ... [Extract][Cancel]"，
+; GUIMode / Directory / RunProgram 全被忽略。所以下面这几行现在是"留给将来"的：
+; 一旦换成第三方 7zSD.sfx（7z SFX Setup），不改一行就能恢复自动启动。
+;
+; 当前实际流程（说明书里也是这么写的）：
+;   双击 -> 选目录（建议 D:\LogSentry）-> Extract
+;   -> 缺 .NET 4：先双击 LogSentry\dotNetFx40_Full_x86_x64.exe，装完重启
+;   -> 双击 LogSentry\LogSentry.exe
+Title="LogSentry - Windows 日志一把梭分析"
+GUIMode="2"
+Directory=".\LogSentry\"
+RunProgram="LogSentry.exe"

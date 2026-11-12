@@ -114,28 +114,55 @@ cd dist
 
 ## 7. 打包
 
-`pack-portable.ps1` 走「自写引导器 + zip 载荷」：
+`pack-sfx.ps1` 走「7-Zip SFX」：
 
-1. 把 `LogSentry.exe / LogParser.exe / LogParser.chm / queries.txt / 使用说明.txt`
-   （加 `-IncludeDotNet` 时还有 `dotNetFx40_Full_x86_x64.exe`）放进 `.pkg/payload/`，
-   打成 `.pkg/payload.zip`（Deflate）。
-2. 用同一个 `csc.exe` 把 `src/Launcher.cs` 编成约 9 KB 的 `.pkg/LogSentryLauncher.exe`。
-3. 三段字节拼接：`launcher.exe` + ASCII 标记 `LSPAYLOAD!` + `payload.zip` → `dist/LogSentry_Portable.exe`。
+1. 把 `LogSentry.exe / LogParser.exe / LogParser.chm / queries.txt / 使用说明.txt` 以及
+   `dotNetFx40_Full_x86_x64.exe` 放进 `.pkg/stage/LogSentry/`（一个 `LogSentry\` 子目录，
+   解压后就是一个文件夹，不会把 50 MB 的文件散到目标目录根上）。
+2. 用仓库自带的 `.tools/extra/7za.exe` 打包：`7za a -t7z -mx=5 -mhc=on .pkg\payload.7z LogSentry`
+   （installer 本身已是 cab 压缩，`-mx=9` 只省 2–3 MB 却慢很多）。
+3. `config.txt` = `;!@Install@!UTF-8!` + `sfx-config.txt` 正文（过滤 `;` 注释行）+
+   `;!@InstallEnd@!`，**UTF-8 无 BOM**（脚本里有 BOM 校验，有 BOM 直接 throw）。
+4. 三段字节拼接：`7z.sfx` + `config.txt` + `payload.7z` → `dist/LogSentry_Portable.exe`。
 
-运行时引导器自寻尾部标记、用 .NET 自带 `ZipArchive` 解压到 `%TEMP%\LogSentry_<pid>_<ticks>\`，
-再 `ShellExecute` 启动 `LogSentry.exe`（UAC 由主程序清单触发），退出后起隐藏 `cmd` 删目录。
-`--keep` 参数改成解压到 exe 同级的 `LogSentry_unpacked\` 且不删除，便于排查。
+产物结构（`dist/LogSentry_Portable.exe`，51,478,763 B 时核对过）：
+前 214,528 B 与 `.tools/sfx/7z.sfx` 逐字节相同；偏移 214,528 起是 `;!@Install@!UTF-8!` 开头的
+155 B 配置；紧接着 `37 7A BC AF 27 1C`（7z 魔数）。
 
-### 为什么放弃 7-Zip SFX（实测结论，别再回去踩）
+**行为（实测，别期待自动启动）**：双击后弹的是 7-Zip 自己的对话框
+`7-Zip self-extracting archive / Extract to: <路径> [Extract][Cancel]`，用户选目录、点 Extract，
+再自己去 `LogSentry\` 里双击 `LogSentry.exe`。官方 GUI 模块不解析配置段，`GUIMode / Directory /
+RunProgram` 全被忽略（实测：旧产物双击后停在 Extract 对话框，轮询 10 秒既没有 `7zS*.tmp\LogSentry\`
+被创建，也没有主程序进程被拉起）。
 
-- 官方 `7z.sfx / 7zS.sfx / 7zCon.sfx`（7-Zip 25.01，均未签名）都是**纯解压模块**：
-  二进制里扫不到 `RunProgram` / `InstallPath` / `Directory` 任何配置键（ASCII 与 UTF-16 都扫过）。
-- 拼包实测：`7zS.sfx` + `InstallPath="%TEMP%\SFXKEYTEST"` + `RunProgram="cmd.exe /c echo X > %TEMP%\sfx_main.txt"`
-  → `exit = 0`，但标记文件与目标目录都不存在；`7z.sfx` 用 `Directory=".\out\"` 同样没有 `out_marker.txt`；
-  `7zCon.sfx` 只认命令行 `-o`（`7z x` 式解压），不跑任何程序。即：**解压完就退出，不会启动主程序**。
+**包内不管 .NET 4**：`dotNetFx40_Full_x86_x64.exe` 就是载荷里的一个普通文件，和 `使用说明.txt`
+一样被解出来；缺运行库时用户自己双击安装。不检测、不弹询问框、不代跑安装程序。
+
+### 2026-11-12 的三次改道（按顺序，别再绕回去）
+
+1. **自写托管外壳（CLR 4）**：`src/Launcher.cs` 用 `v4.0.30319\csc.exe` 编译 —— 目标机缺 .NET 4 时
+   mscoree 在进 `Main()` 之前就弹「初始化错误」，包里的 50 MB 安装包永远解不出来，形成死锁。
+2. **自写托管外壳（CLR 2.0）**：改成 C# 2.0 + 手写 zip 解压（`DeflateStream`），Win7 的 3.5.1 能跑，
+   Win10/11 却默认没开 3.5 —— 于是换成"原生壳"的讨论。
+3. **最终回到 7-Zip SFX**（用户决定）：原生 PE、任何 Windows 都能解压，代价是手动点一次 Extract。
+   自写外壳与 `pack-portable.ps1` 已删除（`git show 99c4853:src/Launcher.cs` 可找回）。
+
+> 判断 CLR 目标别用 `IMAGE_COR20_HEADER.MajorRuntimeVersion`：.NET 2.0 和 4.x 程序集这个值都是 2
+> （Minor 都是 5）。要看 `ImageRuntimeVersion` / mscorlib 的 AssemblyRef 版本，且只能用
+> Windows PowerShell 5.1 的 `ReflectionOnlyLoadFrom`（PS 7 的 .NET 8 加载不了 2.0 程序集）。
+
+### 为什么没有自动启动（实测结论，别再试官方模块）
+
+- 官方 `7z.sfx / 7zS.sfx / 7zCon.sfx` 都是**纯解压模块**：二进制里扫不到 `RunProgram` /
+  `InstallPath` / `Directory` 任何配置键（ASCII 与 UTF-16 都扫过）。仓库里 `.tools/sfx/7z.sfx` 与
+  `7zS.sfx` 的 MD5 都是 `E48CBBC210990C29F21D0EC949A8B5E6` —— 就是同一个 GUI 模块。
+- 拼包实测：`7zS.sfx` + `InstallPath` + `RunProgram="cmd.exe /c echo X > %TEMP%\sfx_main.txt"`
+  → `exit = 0`，标记文件与目标目录都不存在；`7z.sfx` 用 `Directory=".\out\"` 同样没有
+  `out_marker.txt`；`7zCon.sfx` 只认命令行 `-o`。即：**解压完就退出，不会启动主程序**。
 - 带安装脚本能力的是第三方改造版 `7zSD.sfx`（sFxSetup），官方 `7z2501-extra.7z` 里只有
-  `7za.exe / 7za.dll / 7zxa.dll / Far/*`，没有它；旧版 `7z920_extra.7z` 的 SourceForge 直链返回 403。
-- 结论：单文件「解压 + 启动」用自写引导器最省事，零外部依赖，还能顺便把 .NET 离线安装包塞进去。
+  `7za.exe / 7za.dll / 7zxa.dll / Far/*`，没有它。
+- 若哪天要自动启动：把 `7z.sfx` 换成 `7zSD.sfx` 即可，`sfx-config.txt` 里的
+  `GUIMode / Directory / RunProgram` 一行都不用改。
 
 ### 载荷校验
 

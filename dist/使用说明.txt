@@ -10,19 +10,33 @@ LogSentry · Windows 日志一把梭分析
 ------------
 
 用法 A：单文件（推荐拷给别人）
-  双击 LogSentry_Portable.exe → 先解压到一个临时文件夹（约 1~2 秒）：
+  双击 LogSentry_Portable.exe → 弹出 7-Zip 自己的解压对话框：
 
-      %TEMP%\LogSentry_<pid>_<ticks>\      ← 所有文件都在这个文件夹里，不会散落在临时目录
+      ┌─ 7-Zip self-extracting archive ───────────────┐
+      │ Extract to:                                   │
+      │ C:\Users\...\AppData\Local\Temp   [ 浏览… ]   │
+      │                        [ Extract ]  [ Cancel ]│
+      └───────────────────────────────────────────────┘
 
-  解压完自动从该文件夹启动主界面（此时会弹 UAC，因为主程序清单写了 requireAdministrator）。
-  主程序退出后这个临时文件夹会被自动删掉。想留下文件（比如以后要改 queries.txt）：
-  用命令行带参数运行  LogSentry_Portable.exe --keep  它会解压到 exe 同级的
-  LogSentry_unpacked\ 并保留，不删除。
+  把路径改成你想放的地方（建议 D:\LogSentry 这类固定目录，别留在临时目录里），
+  点 Extract，就在该目录下得到一整套文件：
 
-  包里还带了 dotNetFx40_Full_x86_x64.exe（.NET Framework 4 离线安装包）：
-  目标机器如果没装 .NET 4（Win7 裸机、Win8.1 精简版），双击主程序会弹
-  “初始化错误 / 需要 .NET Framework v4.0.30319”。这时先用 --keep 解压一次，
-  双击该目录里的 dotNetFx40_Full_x86_x64.exe 装上，重启一次再双击主程序即可。
+      D:\LogSentry\LogSentry\LogSentry.exe
+                            \LogParser.exe
+                            \LogParser.chm
+                            \queries.txt
+                            \使用说明.txt
+                            \dotNetFx40_Full_x86_x64.exe
+
+  然后进这个 LogSentry\ 文件夹，双击 LogSentry.exe 启动（会弹 UAC，因为主程序清单写了
+  requireAdministrator）。文件就放在那里不会消失，想长期用就用这个文件夹，改 queries.txt
+  也直接改这里。
+
+  关于 .NET：主程序需要 .NET Framework 4.0 或更高。如果双击 LogSentry.exe 弹的是
+  「初始化错误 / 需要 .NET Framework v4.0.30319」，说明这台机器还没装 .NET 4：
+  双击同一个文件夹里的 dotNetFx40_Full_x86_x64.exe，装完重启一次，再双击
+  LogSentry.exe 即可。安装包跟别的文件一样，就是一个普通文件，自己双击装——
+  解压这一步本身不需要任何 .NET（解压器是 7-Zip 的原生模块）。
 
 用法 B：文件夹（自己机器上长期用）
   把整个 dist 文件夹拷到任意位置，双击 LogSentry.exe。必需的两个文件是：

@@ -1,4 +1,4 @@
-#requires -version 3.0
+﻿#requires -version 3.0
 # LogSentry build script (no VS / no .NET SDK required).
 # Usage: powershell -NoProfile -ExecutionPolicy Bypass -File build.ps1 [-PackSfx]
 param(
@@ -57,8 +57,8 @@ foreach ($asm in @("System.dll", "System.Core.dll", "System.Windows.Forms.dll", 
 
 $srcDir = Join-Path $root "src"
 $manifest = Join-Path $srcDir "app.manifest"
-# Launcher.cs 属于便携版引导器（自解压外壳），有自己的 Main，不能混进主程序编译
-$sources = @(Get-ChildItem (Join-Path $srcDir "*.cs") | Where-Object { $_.Name -ne "SelfTest.cs" -and $_.Name -ne "Launcher.cs" } | ForEach-Object { $_.FullName })
+# 主程序源码里排除 SelfTest.cs（它有自己的 console Main，单独编成 _selftest.exe）
+$sources = @(Get-ChildItem (Join-Path $srcDir "*.cs") | Where-Object { $_.Name -ne "SelfTest.cs" } | ForEach-Object { $_.FullName })
 
 $out = Join-Path $root $OutDir
 if (-not (Test-Path $out)) { New-Item -ItemType Directory -Path $out | Out-Null }
@@ -76,7 +76,7 @@ Say ("[OK] LogSentry.exe built, " + [string]::Format($culture, "{0:N1}", ($size 
 
 # console self-test binary (verifies engine + config, does not need admin for System log items)
 $testExe = Join-Path $out "_selftest.exe"
-$testSources = @(Get-ChildItem (Join-Path $srcDir "*.cs") | Where-Object { $_.Name -ne "Launcher.cs" } | ForEach-Object { $_.FullName })
+$testSources = @(Get-ChildItem (Join-Path $srcDir "*.cs") | ForEach-Object { $_.FullName })
 $testArgs = @("/nologo", "/utf8output", "/codepage:65001", "/define:SELFTEST", "/target:exe", "/out:$testExe") + $refs + $testSources
 & $csc @testArgs
 if ($LASTEXITCODE -ne 0) { Say "[!] selftest build failed (main exe is fine)" }
@@ -99,5 +99,4 @@ if ($PackSfx) {
     if (Test-Path $pack) { & powershell -NoProfile -ExecutionPolicy Bypass -File $pack }
     else { Say "[!] pack-sfx.ps1 missing, skip single-file packaging" }
 }
-
 Say "done."
