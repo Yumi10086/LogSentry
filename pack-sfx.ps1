@@ -5,8 +5,8 @@
 #   Double-click -> 7-Zip's own "Extract to:" dialog (the official 7z.sfx is a plain GUI
 #   extractor, it ignores the ;!@Install@! config block -- measured, see sfx-config.txt)
 #   -> user picks a folder, clicks Extract, then runs LogSentry\LogSentry.exe themselves.
-#   The payload also carries dotNetFx40_Full_x86_x64.exe as a normal file, so a machine
-#   without .NET Framework 4 can install it by hand and retry. No auto-launch, no
+#   The payload also carries the .NET Framework offline installer (NDP48 by default) as a
+#   plain file, so a machine without the runtime can install it by hand and retry.
 #   detection, no installer orchestration -- that is deliberate, by user request.
 #
 # Requirements:
@@ -27,7 +27,7 @@ param(
     [string]$OutputName = "LogSentry_Portable.exe",
     [string]$SfxModule = "",
     [string]$SevenZip = "",
-    [string]$DotNetInstaller = "dotNetFx40_Full_x86_x64.exe",
+    [string]$DotNetInstaller = "NDP48-x86-x64-AllOS-ENU.exe",
     # 5 is plenty: the .NET installer is already cab-compressed, -mx=9 only shaves ~2 MB
     # and takes much longer.
     [int]$CompressionLevel = 5
@@ -162,5 +162,5 @@ Say ("     SHA256 " + (Get-FileHash $out -Algorithm SHA256).Hash)
 Say ""
 Say "Layout: 7z.sfx + config.txt + payload.7z  (payload root folder: LogSentry\)"
 Say "Use   : double-click -> 'Extract to:' dialog -> pick a folder (e.g. D:\LogSentry) -> Extract"
-Say "        -> no .NET 4 ? run LogSentry\dotNetFx40_Full_x86_x64.exe, reboot, then LogSentry\LogSentry.exe"
+Say ("        -> runtime missing ? run LogSentry\" + $DotNetInstaller + " , reboot, then LogSentry\LogSentry.exe")
 Say "Check : 7za t .pkg\payload.7z   /   7za l .pkg\payload.7z"

@@ -10,8 +10,8 @@ Win10 / Win11 自带 .NET Framework 4.8，双击即用，自动 UAC 提权。
 
 | 文件 | 说明 | 大小 | SHA256 |
 | --- | --- | --- | --- |
-| `LogSentry_Portable.exe` | **推荐**：单文件便携版（7-Zip SFX = `7z.sfx` + 配置 + `payload.7z`，含 .NET Framework 4 离线安装包；解压器是 7-Zip 原生模块，不依赖任何 .NET） | 51478755 B | `12197F80283527C982D981960DEF063D0EB67A295BBEB2091D964A9F30FE8D91` |
-| `LogSentry_v1.0.zip` | 绿色文件夹版全套（含 `.NET Framework 4` 离线安装包），解压后用 `LogSentry.exe` | 51473613 B | `2DBC6EF23DEFF8629074BD1E9C34F1FC429EFA20637D9BECAC37F073B19BF67D` |
+| `LogSentry_Portable.exe` | **推荐**：单文件便携版（7-Zip SFX = `7z.sfx` + 配置 + `payload.7z`，含 .NET Framework 4.8 离线安装包；解压器是 7-Zip 原生模块，不依赖任何 .NET） | 122364698 B | `7FFFFF23A66B6A2954384020E82ABB0F4D93F58C861C171EDC0CA91392A539E7` |
+| `LogSentry_v1.0.zip` | 绿色文件夹版全套（含 `.NET Framework 4.8` 离线安装包 `NDP48-x86-x64-AllOS-ENU.exe`），解压后用 `LogSentry.exe` | 122360482 B | `6D9504CAF2E265D34F0BEFCDA44B7858ADAD7078328C68EC15C649883DB198C8` |
 
 单文件 SHA256 校验：
 
@@ -40,7 +40,7 @@ Get-FileHash .\LogSentry_Portable.exe -Algorithm SHA256
 
 1. 下载 `LogSentry_Portable.exe`，双击 → 在 7-Zip 的「Extract to:」里选目录（建议 `D:\LogSentry`）→ `Extract`
 2. 进入刚解出来的 `LogSentry\` 文件夹，双击 `LogSentry.exe` → UAC 确认 → 界面打开
-   （若弹「需要 .NET Framework v4.0.30319」，先双击同目录的 `dotNetFx40_Full_x86_x64.exe`，装完重启一次）
+   （若弹「需要 .NET Framework v4.0.30319」，先双击同目录的 `NDP48-x86-x64-AllOS-ENU.exe`（.NET Framework 4.8），装完重启一次。只装 4.0 不够：主程序用了 async/await 与 ZipArchive，会报 `TypeLoadException: Could not load type 'System.Runtime.CompilerServices.IAsyncStateMachine'`）
 3. 左栏勾选检测项，例如同时勾上「登录失败 (4625)」与「登录成功 (4624)」
 4. 点 `▶ 开始分析（F5）`，结果区按项分隔显示，末尾给出成功 / 失败 / 命中汇总
 5. 需要留档点「导出结果」，选 xlsx 或 csv

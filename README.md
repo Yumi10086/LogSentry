@@ -9,8 +9,9 @@
 
 > 单文件包是 **7-Zip SFX**：解压器是 7-Zip 自带的原生模块，解压这一步不依赖任何 .NET。
 > 双击后是 7-Zip 自己的「Extract to:」对话框 —— 选目录、Extract，然后在里面双击
-> `LogSentry\LogSentry.exe`。包内还带 `dotNetFx40_Full_x86_x64.exe`，机器没装 .NET 4 时
-> 自己双击装上、重启再启动主程序。
+> `LogSentry\LogSentry.exe`。包内还带 `NDP48-x86-x64-AllOS-ENU.exe`（.NET Framework 4.8
+> 离线安装包，115.7 MB），机器没装运行库时自己双击装上、重启再启动主程序。
+> 主程序要求 **.NET Framework 4.5+**（源码用了 async/await 与 ZipArchive，都是 4.5 才有的）。
 
 ![界面](docs/screenshots/ui-2-after.png)
 
@@ -28,11 +29,11 @@
 
 ## 快速开始
 
-1. 下载 `dist/LogSentry_Portable.exe`，双击 → 7-Zip 的「Extract to:」对话框里选目录
+1. 到 [Releases](https://github.com/Yumi10086/LogSentry/releases) 下载 `LogSentry_Portable.exe`（仓库里不存这个 116.7 MB 的成品，GitHub 单文件上限 100 MB），双击 → 7-Zip 的「Extract to:」对话框里选目录
    （建议 `D:\LogSentry`）→ `Extract` → 进入 `D:\LogSentry\LogSentry\` 双击 `LogSentry.exe`
    → UAC 确认 → 界面打开。
    （那个文件夹里就是完整一套文件：`LogParser.exe`、配置、说明书，以及
-   `dotNetFx40_Full_x86_x64.exe`。目标机没装 .NET Framework 4 时，主程序会先弹
+   `NDP48-x86-x64-AllOS-ENU.exe`。目标机没装 .NET Framework 4.5+ 时，主程序会先弹
    「初始化错误」——双击这个安装包装好、重启一次即可。解压阶段不检测、不代跑。）
 2. 左栏「按分类勾选」里挑检测项，例如同时勾上「登录失败」与「登录成功」。
 3. 点 `▶ 开始分析（F5）`，结果区按项分隔显示，末尾给出成功 / 失败 / 命中汇总。
@@ -44,13 +45,13 @@
 
 | 文件 | 说明 |
 | --- | --- |
-| `dist/LogSentry_Portable.exe` | **单文件便携版**（7-Zip SFX：`7z.sfx` + 配置 + `payload.7z`，含 `.NET Framework 4` 离线安装包；双击后手动选目录解压，再双击里面的 `LogSentry.exe`） |
+| `LogSentry_Portable.exe`（[Releases](https://github.com/Yumi10086/LogSentry/releases) 附件） | **单文件便携版**（7-Zip SFX：`7z.sfx` + 配置 + `payload.7z`，含 `.NET Framework 4.8` 离线安装包；双击后手动选目录解压，再双击里面的 `LogSentry.exe`） |
 | `dist/LogSentry.exe` | 主程序本体，版本 1.0.0.0，需与 `LogParser.exe`、`queries.txt` 同目录 |
 | `dist/LogParser.exe` | 微软 Log Parser 2.2，查询引擎 |
 | `dist/LogParser.chm` | Log Parser 官方帮助文档 |
 | `dist/queries.txt` | 检测项配置，改它就能增减检测项 |
 | `dist/使用说明.txt` | 面向使用者的手册：界面、时间筛选、判读方法、导出、配置扩展示例、常见问题 |
-| `dist/dotNetFx40_Full_x86_x64.exe` | .NET Framework 4 离线安装包（微软官方，未修改），给没装 .NET 4 的老机器用；便携版外壳会自己调用它 |
+| `NDP48-x86-x64-AllOS-ENU.exe`（仓库根目录） | .NET Framework 4.8 离线安装包（微软官方，未修改，121,346,568 B），打包时会被塞进便携包的 `LogSentry\` 里；缺运行库的机器自己双击装。不入库（`.gitignore`） |
 
 ## 仓库结构
 
@@ -96,7 +97,7 @@ LogSentry/
 # 编译 dist\LogSentry.exe + dist\_selftest.exe + dist\_smoke.exe
 powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1
 
-# 再打单文件便携版（输出 dist\LogSentry_Portable.exe，里面带 .NET 4 离线安装包）
+# 再打单文件便携版（输出 dist\LogSentry_Portable.exe，里面带 .NET 4.8 离线安装包；这个文件不入库，发版时传 Releases 附件）
 powershell -NoProfile -ExecutionPolicy Bypass -File .\pack-sfx.ps1
 
 # 换压缩级别 / 换 SFX 模块

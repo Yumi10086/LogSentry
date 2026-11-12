@@ -117,7 +117,7 @@ cd dist
 `pack-sfx.ps1` 走「7-Zip SFX」：
 
 1. 把 `LogSentry.exe / LogParser.exe / LogParser.chm / queries.txt / 使用说明.txt` 以及
-   `dotNetFx40_Full_x86_x64.exe` 放进 `.pkg/stage/LogSentry/`（一个 `LogSentry\` 子目录，
+   `NDP48-x86-x64-AllOS-ENU.exe`（.NET 4.8 离线包，121,346,568 B）放进 `.pkg/stage/LogSentry/`（一个 `LogSentry\` 子目录，
    解压后就是一个文件夹，不会把 50 MB 的文件散到目标目录根上）。
 2. 用仓库自带的 `.tools/extra/7za.exe` 打包：`7za a -t7z -mx=5 -mhc=on .pkg\payload.7z LogSentry`
    （installer 本身已是 cab 压缩，`-mx=9` 只省 2–3 MB 却慢很多）。
@@ -135,8 +135,19 @@ cd dist
 RunProgram` 全被忽略（实测：旧产物双击后停在 Extract 对话框，轮询 10 秒既没有 `7zS*.tmp\LogSentry\`
 被创建，也没有主程序进程被拉起）。
 
-**包内不管 .NET 4**：`dotNetFx40_Full_x86_x64.exe` 就是载荷里的一个普通文件，和 `使用说明.txt`
+**包内不管运行库**：`NDP48-x86-x64-AllOS-ENU.exe` 就是载荷里的一个普通文件，和 `使用说明.txt`
 一样被解出来；缺运行库时用户自己双击安装。不检测、不弹询问框、不代跑安装程序。
+`pack-sfx.ps1 -DotNetInstaller <文件名>` 可以换成别的版本。
+
+> **为什么带 4.8 而不是 4.0**：源码用了 `async/await`（`Engine.cs` 10 处、`MainForm.cs` 14 处、
+> `UiSmokeTest.cs` 9 处）和 `System.IO.Compression.ZipArchive`（`Exporters.cs` 生成 xlsx，6 处），
+> 两者都是 .NET 4.5 引入的。在只装了 4.0 的机器上会炸：
+> `TypeLoadException: Could not load type 'System.Runtime.CompilerServices.IAsyncStateMachine' from assembly 'mscorlib, Version=4.0.0.0'`
+> （2026-11-12 在 Win7 + 随包 4.0 上实测到）。两条路：随包带 4.5+（现在带 4.8 离线包），
+> 或把代码降到 4.0（去 async、手写 zip 写，约 300 行，未采用）。
+>
+> 手工往包里加文件（已验证）：`7za a dist\LogSentry_Portable.exe LogSentry\xxx.exe`
+> —— 7-Zip 会就地更新，`7z.sfx` 桩和 `config.txt` 都不受影响（拼好的 exe 也能被 7-Zip 当普通压缩包打开）。
 
 ### 2026-11-12 的三次改道（按顺序，别再绕回去）
 

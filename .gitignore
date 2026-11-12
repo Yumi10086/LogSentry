@@ -50,3 +50,7 @@ dist/LogSentry_unpacked/
 
 # 根目录的 .NET 安装包副本（dist/ 里那份才是交付物，根目录这份只是打包源，不入库）
 /dotNetFx40_Full_x86_x64.exe
+# .NET Framework 4.8 offline installer (packed into dist/LogSentry_Portable.exe, 116 MB, not tracked)
+/NDP48-*.exe
+# 单文件便携版成品 116.7 MB：GitHub 拒绝 >100 MB 的文件，改挂 Release 附件，不入库
+/dist/LogSentry_Portable.exe
