@@ -1,4 +1,4 @@
-# 编译与打包的中间产物（由 build.ps1 / pack-sfx.ps1 生成，不入库）
+# 编译与打包的中间产物（由 build.ps1 / pack-portable.ps1 生成，不入库）
 .pkg/
 backup_*/
 _*_backup*/*
@@ -41,3 +41,12 @@ _backup_*/
 # 冒烟日志
 docs/evidence/smoke.log
 
+
+# 便携版/探针解压残留（--keep 或调试时生成）
+/LogSentry_unpacked/
+dist/LogSentry_unpacked/
+/LogSentry/
+/.probe/
+
+# 根目录的 .NET 安装包副本（dist/ 里那份才是交付物，根目录这份只是打包源，不入库）
+/dotNetFx40_Full_x86_x64.exe

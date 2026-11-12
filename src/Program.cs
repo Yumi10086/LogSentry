@@ -16,6 +16,20 @@ namespace LogSentry
 
         public static void MainCore()
         {
+            // 老机器（Win7 未打补丁 / Win8.1 精简版）可能没有 .NET Framework 4.x，
+            // 那样 CLR 根本不会加载到这一行，直接弹「初始化错误」。所以真正的前置检查
+            // 在打包版里由 SFX 的 InstallPath 脚本做（见 pack-sfx.ps1 / 7zSD.sfx 的自解压流程），
+            // 这里只做兜底：当 CLR 能起来但版本低于 4.0 时给出安装指引。
+            if (!RuntimeIsUsable())
+            {
+                MessageBox.Show(
+                    "当前系统的 .NET Framework 版本过低，LogSentry 需要 .NET Framework 4.0 或更高版本。\r\n\r\n"
+                    + "请先安装 .NET Framework 4.x 后再运行本程序；\r\n"
+                    + "便携版（LogSentry_Portable.exe）会自动检测并安装随包的 .NET Framework 4。",
+                    AppTitle, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
             Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
             Application.ThreadException += delegate(object s, ThreadExceptionEventArgs e) { ShowFatal(e.Exception); };
             AppDomain.CurrentDomain.UnhandledException += delegate(object s, UnhandledExceptionEventArgs e)
@@ -86,6 +100,21 @@ namespace LogSentry
 
         [System.Runtime.InteropServices.DllImport("user32.dll")]
         private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        /// <summary>CLR 能起来说明至少 4.x 的某版本，这里再确认关键程序集可用。</summary>
+        private static bool RuntimeIsUsable()
+        {
+            try
+            {
+                Version v = Environment.Version;   // 4.x 时为 4.0.30319.x
+                if (v.Major < 4) return false;
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
 
         private static bool IsElevated()
         {

@@ -1,4 +1,4 @@
-﻿# 开发与验证记录
+# 开发与验证记录
 
 本文件收录面向维护者的内部记录：LogParser 2.2 的实测坑、验收对照表、历史反馈逐条处理、
 自检/冒烟的内部断言细节、复检命令。对外使用文档见 [README.md](../README.md)，
@@ -114,13 +114,34 @@ cd dist
 
 ## 7. 打包
 
-`pack-sfx.ps1` 把 `LogSentry.exe / LogParser.exe / LogParser.chm / queries.txt / 使用说明.txt`
-装进 `archive.7z`，再用 `7z.sfx + sfx-config.txt + archive.7z` 三段字节拼接成单文件。
-`sfx-config.txt` 必须是 **UTF-8 无 BOM**（脚本会显式检查前 3 字节不是 `EF BB BF`），
-否则 SFX 会把整段配置当注释吞掉、解压后不启动。
+`pack-portable.ps1` 走「自写引导器 + zip 载荷」：
 
-打包前需要 7-Zip 的 `7z.sfx`（本仓库不收录二进制）：放到 `.tools/sfx/7z.sfx`（7-Zip 安装包里的
-`7z.sfx`，或用 `7zS.sfx`）。校验方式：`7z x .pkg/payload.7z` 解包后逐文件 SHA256 与 `dist/` 对比。
+1. 把 `LogSentry.exe / LogParser.exe / LogParser.chm / queries.txt / 使用说明.txt`
+   （加 `-IncludeDotNet` 时还有 `dotNetFx40_Full_x86_x64.exe`）放进 `.pkg/payload/`，
+   打成 `.pkg/payload.zip`（Deflate）。
+2. 用同一个 `csc.exe` 把 `src/Launcher.cs` 编成约 9 KB 的 `.pkg/LogSentryLauncher.exe`。
+3. 三段字节拼接：`launcher.exe` + ASCII 标记 `LSPAYLOAD!` + `payload.zip` → `dist/LogSentry_Portable.exe`。
+
+运行时引导器自寻尾部标记、用 .NET 自带 `ZipArchive` 解压到 `%TEMP%\LogSentry_<pid>_<ticks>\`，
+再 `ShellExecute` 启动 `LogSentry.exe`（UAC 由主程序清单触发），退出后起隐藏 `cmd` 删目录。
+`--keep` 参数改成解压到 exe 同级的 `LogSentry_unpacked\` 且不删除，便于排查。
+
+### 为什么放弃 7-Zip SFX（实测结论，别再回去踩）
+
+- 官方 `7z.sfx / 7zS.sfx / 7zCon.sfx`（7-Zip 25.01，均未签名）都是**纯解压模块**：
+  二进制里扫不到 `RunProgram` / `InstallPath` / `Directory` 任何配置键（ASCII 与 UTF-16 都扫过）。
+- 拼包实测：`7zS.sfx` + `InstallPath="%TEMP%\SFXKEYTEST"` + `RunProgram="cmd.exe /c echo X > %TEMP%\sfx_main.txt"`
+  → `exit = 0`，但标记文件与目标目录都不存在；`7z.sfx` 用 `Directory=".\out\"` 同样没有 `out_marker.txt`；
+  `7zCon.sfx` 只认命令行 `-o`（`7z x` 式解压），不跑任何程序。即：**解压完就退出，不会启动主程序**。
+- 带安装脚本能力的是第三方改造版 `7zSD.sfx`（sFxSetup），官方 `7z2501-extra.7z` 里只有
+  `7za.exe / 7za.dll / 7zxa.dll / Far/*`，没有它；旧版 `7z920_extra.7z` 的 SourceForge 直链返回 403。
+- 结论：单文件「解压 + 启动」用自写引导器最省事，零外部依赖，还能顺便把 .NET 离线安装包塞进去。
+
+### 载荷校验
+
+`Expand-Archive` / 任意 zip 工具解包 `.pkg/payload.zip` 后，逐文件 SHA256 与 `dist/` 对比应为 MATCH。
+当前正式包：`dist/LogSentry_Portable.exe` 51468733 B，
+SHA256 `A2794F3630E4531E15C387FB19AC21861121BCF6D8F2B3D36C4D166D59D61972`。
 
 ## 8. 源码维护注意
 

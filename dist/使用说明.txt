@@ -1,4 +1,4 @@
-﻿LogSentry · Windows 日志一把梭分析
+LogSentry · Windows 日志一把梭分析
 ====================================
 
 一句话：勾几个检测项，点“开始分析”，把登录、账户、服务、计划任务、痕迹清理这些
@@ -10,12 +10,19 @@
 ------------
 
 用法 A：单文件（推荐拷给别人）
-  双击 LogSentry_Portable.exe → 自动弹 UAC → 确认后解压到一个临时文件夹里：
+  双击 LogSentry_Portable.exe → 先解压到一个临时文件夹（约 1~2 秒）：
 
-      %TEMP%\7zSxxxxx.tmp\LogSentry\        ← 五个文件都在这个文件夹里，不会散落在临时目录
+      %TEMP%\LogSentry_<pid>_<ticks>\      ← 所有文件都在这个文件夹里，不会散落在临时目录
 
-  然后自动从该文件夹启动主界面。程序退出时这个临时文件夹会被自动删掉，
-  所以不用手动清理；想留下文件（比如以后要改 queries.txt），用下面的用法 B。
+  解压完自动从该文件夹启动主界面（此时会弹 UAC，因为主程序清单写了 requireAdministrator）。
+  主程序退出后这个临时文件夹会被自动删掉。想留下文件（比如以后要改 queries.txt）：
+  用命令行带参数运行  LogSentry_Portable.exe --keep  它会解压到 exe 同级的
+  LogSentry_unpacked\ 并保留，不删除。
+
+  包里还带了 dotNetFx40_Full_x86_x64.exe（.NET Framework 4 离线安装包）：
+  目标机器如果没装 .NET 4（Win7 裸机、Win8.1 精简版），双击主程序会弹
+  “初始化错误 / 需要 .NET Framework v4.0.30319”。这时先用 --keep 解压一次，
+  双击该目录里的 dotNetFx40_Full_x86_x64.exe 装上，重启一次再双击主程序即可。
 
 用法 B：文件夹（自己机器上长期用）
   把整个 dist 文件夹拷到任意位置，双击 LogSentry.exe。必需的两个文件是：

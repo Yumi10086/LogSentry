@@ -26,7 +26,8 @@
 ## 快速开始
 
 1. 下载 `dist/LogSentry_Portable.exe`，双击 → UAC 确认 → 界面打开。
-   （首次运行会在临时目录解压出 `LogSentry\` 文件夹，其中已包含 `LogParser.exe` 与配置。）
+   （首次运行会在临时目录解压出程序文件夹，其中已包含 `LogParser.exe`、配置与
+   `dotNetFx40_Full_x86_x64.exe`：目标机没装 .NET Framework 4 时，双击包里的安装包装好即可。）
 2. 左栏「按分类勾选」里挑检测项，例如同时勾上「登录失败」与「登录成功」。
 3. 点 `▶ 开始分析（F5）`，结果区按项分隔显示，末尾给出成功 / 失败 / 命中汇总。
 4. 需要留档就点「导出结果」，选 xlsx 或 csv。
@@ -37,12 +38,13 @@
 
 | 文件 | 说明 |
 | --- | --- |
-| `dist/LogSentry_Portable.exe` | **单文件便携版**（7-Zip SFX 自解压，解压后建 `LogSentry\` 文件夹并自动启动） |
+| `dist/LogSentry_Portable.exe` | **单文件便携版**（自带解压引导器 + zip 载荷，含 `.NET Framework 4` 离线安装包；双击后解压到临时目录并自动启动） |
 | `dist/LogSentry.exe` | 主程序本体，版本 1.0.0.0，需与 `LogParser.exe`、`queries.txt` 同目录 |
 | `dist/LogParser.exe` | 微软 Log Parser 2.2，查询引擎 |
 | `dist/LogParser.chm` | Log Parser 官方帮助文档 |
 | `dist/queries.txt` | 检测项配置，改它就能增减检测项 |
 | `dist/使用说明.txt` | 面向使用者的手册：界面、时间筛选、判读方法、导出、配置扩展示例、常见问题 |
+| `dist/dotNetFx40_Full_x86_x64.exe` | .NET Framework 4 离线安装包（微软官方，未修改），给没装 .NET 4 的老机器用 |
 
 ## 仓库结构
 
@@ -55,11 +57,12 @@ LogSentry/
 │  ├─ Engine.cs             LogParser 封装：参数拼装、编码、超时、输出清理
 │  ├─ Exporters.cs          CSV / XLSX 生成（手写 OOXML + ZipArchive）
 │  ├─ Config.cs / BuiltinQueries.cs   queries.txt 解析 + 内置检测项
+│  ├─ Launcher.cs           便携版引导器：自解压外壳 + 启动主程序（独立 exe，不进主程序编译）
+│  ├─ launcher.manifest     引导器清单（asInvoker，不提权）
 │  ├─ SelfTest.cs           --selftest 的 12 组断言
 │  └─ UiSmokeTest.cs        --smoke 的界面/导出/手动命令自动化冒烟
 ├─ build.ps1                csc 编译 → dist/LogSentry.exe + _selftest.exe + _smoke.exe
-├─ pack-sfx.ps1             7-Zip SFX 三段拼接 → dist/LogSentry_Portable.exe
-├─ sfx-config.txt           SFX 配置正文（UTF-8，中文标题放这里）
+├─ pack-portable.ps1        编译引导器 + 打 zip 载荷 + 三段拼接 → dist/LogSentry_Portable.exe
 ├─ dist/                    交付产物（见上表）
 ├─ docs/
 │  ├─ screenshots/          界面截图
@@ -83,15 +86,21 @@ LogSentry/
 # 编译 dist\LogSentry.exe + dist\_selftest.exe + dist\_smoke.exe
 powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1
 
-# 再打单文件便携版（输出 dist\LogSentry_Portable.exe）
-powershell -NoProfile -ExecutionPolicy Bypass -File .\pack-sfx.ps1
+# 再打单文件便携版（输出 dist\LogSentry_Portable.exe，含 .NET 4 离线安装包）
+powershell -NoProfile -ExecutionPolicy Bypass -File .\pack-portable.ps1 -IncludeDotNet
 ```
 
 `build.ps1` 自动寻找 `csc.exe`（优先 Framework64，回退 32 位），优先使用
 `Reference Assemblies\...\v4.8`，否则回退 Framework 目录里的 GAC 引用。
 
-`pack-sfx.ps1` 需要 7-Zip 的 `7z.sfx`，本仓库不收录二进制：把它放到 `.tools/sfx/7z.sfx`
-（来自 7-Zip 安装包的 `7z.sfx`，或用 `7zS.sfx`）后再运行。
+`pack-portable.ps1` 不需要 7-Zip：它用同一个 `csc.exe` 把 `src/Launcher.cs` 编成一个
+约 9 KB 的解压引导器，再把 zip 载荷（`LogSentry.exe`、`LogParser.exe`、`LogParser.chm`、
+`queries.txt`、使用说明、可选的 .NET 安装包）直接追加在引导器后面。目标机用 .NET 自带的
+`ZipArchive` 解压，全程不依赖外部工具。
+
+> 为什么不继续用 7-Zip SFX：官方 `7z.sfx / 7zS.sfx / 7zCon.sfx` 都是纯解压模块，不认配置段里的
+> `RunProgram / Directory / InstallPath`（实测 exit=0 但标记文件从未生成），无法做到「解压完
+> 自动启动」。带安装脚本能力的是第三方改造版 `7zSD.sfx`，官方 extra 包里并不提供。
 
 ## 自检
 
