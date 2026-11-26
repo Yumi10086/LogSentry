@@ -1,8 +1,8 @@
 ﻿#requires -version 3.0
 # LogSentry build script (no VS / no .NET SDK required).
-# Usage: powershell -NoProfile -ExecutionPolicy Bypass -File build.ps1 [-PackSfx]
+# Usage: powershell -NoProfile -ExecutionPolicy Bypass -File build.ps1
+# Packaging is a separate step now: pack-zip.ps1 (see docs/DEVELOPMENT.md section 7).
 param(
-    [switch]$PackSfx,
     [string]$OutDir = "dist"
 )
 
@@ -92,11 +92,5 @@ else { Say ("[OK] smoke    : " + $smokeExe) }
 if (-not (Test-Path (Join-Path $out "LogParser.exe"))) {
     Say "[!] LogParser.exe not found in dist - app starts but cannot query."
     Say "    Copy LogParser.exe (Microsoft Log Parser 2.2) into that folder."
-}
-
-if ($PackSfx) {
-    $pack = Join-Path $root "pack-sfx.ps1"
-    if (Test-Path $pack) { & powershell -NoProfile -ExecutionPolicy Bypass -File $pack }
-    else { Say "[!] pack-sfx.ps1 missing, skip single-file packaging" }
 }
 Say "done."

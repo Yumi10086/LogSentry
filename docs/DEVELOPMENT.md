@@ -1,4 +1,4 @@
-# 开发与验证记录
+﻿# 开发与验证记录
 
 本文件收录面向维护者的内部记录：LogParser 2.2 的实测坑、验收对照表、历史反馈逐条处理、
 自检/冒烟的内部断言细节、复检命令。对外使用文档见 [README.md](../README.md)，
@@ -47,14 +47,14 @@
 | Brief 验收项 | 证据 |
 | --- | --- |
 | 1. 双击自动 UAC | manifest `requireAdministrator`；非管理员进程 `Process.Start(UseShellExecute=false)` 报「请求的操作需要提升」→ [uac-manifest-check.txt](evidence/uac-manifest-check.txt) |
-| 2. 可勾选多项 | 界面 26 个复选框，`_smoke.exe` 实测勾选 5 项跑通 → [smoke-output.txt](evidence/smoke-output.txt) |
+| 2. 可勾选多项 | 界面 29 个复选框，`_smoke.exe` 实测勾选 5 项跑通 → [smoke-output.txt](evidence/smoke-output.txt) |
 | 3. 按顺序执行多个查询 | `[*] 1/2 …` `[*] 2/2 …` 顺序输出 → [smoke-head.txt](evidence/smoke-head.txt) |
 | 4. 执行期间不冻结 | 冒烟过程中泵消息并采样状态栏，`UI stayed alive = True` |
 | 5. 中文不乱码 | `OutputEncoding = CP936`，结果区中文正常 → [ui-2-after.png](screenshots/ui-2-after.png) |
 | 6. 单项失败有标记且不影响后续 | `[!] 查询失败：标签` + 原因 + SQL，后一项照常执行；自检第 6/7 项覆盖 |
 | 7. 拷到别的机器即用 | 只依赖 .NET Framework + 同目录 `LogParser.exe`；打包版是自解压单文件，解包后 5 个文件哈希与 `dist` 一致 |
 | 8. 加检测项只改配置 | `queries.txt` 动态生成界面，`MainForm` 无任何事件号硬编码；自检 [1b] 保证文件与内置默认值同步 |
-| 9. 可识别 PsExec / 爆破 / 建号 / 清日志 | 内置 4624/4625/4720/4728/7045/4698/1102/Defender 等 26 项 |
+| 9. 可识别 PsExec / 爆破 / 建号 / 清日志 | 内置 4624/4625/4720/4728/7045/4697/7000/7036/7040/4698/1102/Defender 等 29 项 |
 
 ## 4. 迭代记录（每轮反馈 → 处理 → 证据）
 
@@ -74,9 +74,9 @@
 | 感觉比之前慢了很多 | ①结果区渲染从「逐行 `AppendText` + 每行 `ScrollToCaret`」改成「按样式攒进 `StringBuilder`，节拍统一写一次」；②更要紧的是自测框架用 `DoEvents` 泵消息，`await` 续体掉到线程池，跨线程写 RichTextBox 每次等 1 秒，之前的「20 多秒」是量具错 | `Run.Wall = 0.5s`、`Perf.AppendMs = 8 ms / 17 次`（旧记录 23.17s）；3000 行重负载 `Run.Wall = 1.2s` → [smoke-heavy-output.txt](evidence/smoke-heavy-output.txt) |
 | 开始分析后右栏一片白，要等一会才有内容 | 以前为省重绘在开跑时把结果区 `Visible=false`，整轮结束才显示。现在边跑边写：点完按钮先写「(正在执行…) 正在启动 LogParser」，每项写完就落地并滚到底；样式切换时把插入点移到本行行首（零长度选区）再刷，既不会反白旧行 | 冒烟 `Run.Wall = 0.5s`、最慢一次写入 `18 ms`；3000 行重负载单次 420359 字符只花 29ms → [smoke-output.txt](evidence/smoke-output.txt) |
 
-## 5. 自检 `_selftest.exe` 的 12 组断言
+## 5. 自检 `_selftest.exe` 的断言（12 组 + 配置合并 1c）
 
-1. 配置解析（26 项 / 0 警告 / id 唯一）
+1. 配置解析（29 项 / 0 警告 / id 唯一）
 2. `queries.txt` 与 `BuiltinQueries` 文本一致（防两者跑偏）
 3. 参数构造与引号转义
 4. 逐项真实执行
@@ -96,6 +96,86 @@
 `--tab2`（切到「参数与超时」页）、`--format X`（切换输出格式）、`--export-xlsx / --export-csv`（导出并校验）、
 `--manual '<命令行>'`（走「手动命令」页执行）。
 
+## 5.5 自定义检测项：为什么配置分家（2026-11-12）
+
+数据流：
+
+```text
+<exe>\queries.txt                出厂 29 项（随包升级会整份替换）
+        |
+        +-- ConfigLoader.LoadMerged(builtin, user)
+        |     同 id：用户字段覆盖出厂值，空字段沿用出厂
+        |     同 id + disabled: true：停用（只写 id 也行，Query 用出厂值补上）
+        |     新 id：追加，Source = "user"
+        v
+_config.Items  -- RebuildCheckboxes() 按它生成勾选页；Disabled 项直接 continue，不进勾选页
+        ^
+<exe>\config\user-queries.txt    用户项 / 停用声明（UserQueries.Save 整体写回，UTF-8 带 BOM）
+```
+
+三个决定与理由：
+
+1. **不做单文件**：`queries.txt` 每次升级都被覆盖，用户项写进去必丢。分成两个文件后，
+   升级只换 `queries.txt`，`config\` 原样保留；换机器时把 `config\user-queries.txt` 拷过去即可。
+2. **停用用同 id + `disabled: true`，不用单独的黑名单文件**：一个文件同时表达「加项」和
+   「停内置项」，少一个要同步的状态，`LoadMerged` 里就是一个分支。只有 `[id]` + `disabled: true`
+   的空壳项在解析器校验段被放行，其余字段用出厂值补：
+
+   ```csharp
+   if (it.Disabled && it.Id.Length > 0 && it.Query.Length == 0) { ids.Add(it.Id); ok.Add(it); continue; }
+   ```
+
+3. **「测试这条」只贴前 6 行，且写到右侧输出区**：单独跑一次 `LogParserRunner`，命中条数与前 6 行
+   经 `WriteLineColored` + `AppendResultText` + `FlushPending` 进右侧 `_rtbOutput`，不进结果集合、
+   不参与导出，免得「试一下」把正式结果搞脏；也因此页面里不再需要预览框（省下 96 px 高度）。
+4. **页内两子页**：左栏页签可用区只有 ~402×463，塞不下「列表 + 表单 + 预览 + 29 个内置项」
+   （自然高度 ≈610），所以「自定义检测项」内嵌一个 TabControl 分成「我的检测项」和「内置项开关」，
+   表单用「左标签 + 右控件」两列压缩高度，列表与内置项列表吃百分比高度。
+
+验证（不靠人点）：
+
+- `src\SelfTest.cs` 的 `[1c]` 区块在 `%TEMP%` 建临时用户配置，断言：合并后项数 = 出厂 + 1、
+  用户项 `Source == "user"`、内置项 `Disabled` 为真且仍保留 SQL 与自动推出的标签、
+  `UserQueries.Save` → `LoadOptional` 往返条数一致且 `disabled` 保留、文件头是 `EF BB BF`、
+  `NewId` 顺延不撞车、`PathFor` 落在 `config\user-queries.txt`。
+- 另用反射探针对真实 `MainForm` 跑过一遍（临时程序，不入库）：新增 → 保存 → 重新加载后
+  勾选页多一个复选框且默认勾上；停用内置项后该复选框 `Enabled == false`、文字带「（已停用）」；
+  全选后生效项数 = 合并项数 − 1；删掉 `config\` 后回到 29 项。
+
+## 5.6 为什么内置项里没有「任务计划运营日志」（2026-11-26 实测）
+
+用户要加 TaskScheduler 的 100/129/141/200/201。它们不在 `Security` / `System`，
+而在通道 `Microsoft-Windows-TaskScheduler/Operational`。四条实测全部失败：
+
+| 写法 | 结果 |
+| --- | --- |
+| `FROM "Microsoft-Windows-TaskScheduler/Operational"` | `Error searching for files in folder …\Microsoft-Windows-TaskScheduler: 文件名、目录名或卷标语法不正确`（把通道名当路径，按 `/` 劈成目录+文件） |
+| `FROM "Microsoft-Windows-PowerShell/Operational"`（已启用的通道） | 同上 —— 说明不是任务计划特有，是 LogParser 2.2 整体不支持现代通道名 |
+| `FROM 'C:\Windows\System32\winevt\Logs\…%4Operational.evtx'` | `Error searching for files in folder C:\Windows\System32\winevt\Logs: 系统找不到指定的路径`（LogParser 是 32 位，WOW64 把 `System32` 重定向到 `SysWOW64\winevt\Logs`，那里不存在） |
+| `FROM 'C:\Windows\Sysnative\winevt\Logs\…evtx'` | `Error opening event log "\\?\C:\Windows\Sysnative\…": 系统找不到指定的路径`（LogParser 自己加 `\\?\` 前缀，绕过重定向，`Sysnative` 就不解析了） |
+| `FROM '\\localhost\C$\Windows\System32\winevt\Logs\…evtx'` | `Error connecting to registry on server "localhost": 找不到网络路径`（UNC 会被当远程机器，先连远程注册表） |
+
+**可用的路（已实测通）**：`wevtutil epl <通道> <文件>.evtx /ow:true` 导出快照，
+再把 `FROM` 指到 `.evtx` 文件路径（单引号包住），LogParser 能正常读：
+
+```
+wevtutil epl Application "%TEMP%\app.evtx" /ow:true
+LogParser.exe -i:EVT -o:NAT -rtp:-1 "SELECT TOP 3 TimeGenerated, EventID FROM '%TEMP%\app.evtx'"
+→ 2026-11-25 15:39:09,17 …
+```
+
+注意 `%TEMP%` 不会被 LogParser 展开，SQL 里必须写完整路径。
+
+用户决定（2026-11-26）：「不加了，写进文档」→ 没有为它改 `Engine.cs`，
+做法写进 `dist/使用说明.txt` 第六节末尾的「附：任务计划程序运营日志怎么查」。
+另外同一个原因，原来的「示例 2：Sysmon 用通道名」也是错的（从没跑过），
+已一并改成「先 `wevtutil epl` 导出，再查 .evtx」。
+
+服务侧的 7036 / 7040 / 4697 则是普通 `System` / `Security` 事件，已加成内置项
+（`service_state_change` / `service_starttype_changed` / `service_install_audit`），
+顺带修正了 7045 的两列错位：`Strings` 顺序是 `0=服务名 1=映像路径 2=服务类型 3=启动类型 4=账户`，
+原配置把 2/3 的别名写反了。
+
 ## 6. 复检命令
 
 ```powershell
@@ -112,32 +192,41 @@ cd dist
 非管理员会话下 Security 类检测项必然报权限不足，那是预期行为，不是故障——
 `_smoke.exe` 会把它汇报成 `RESULT = OK(部分项按预期失败)`。
 
+
 ## 7. 打包
 
-`pack-sfx.ps1` 走「7-Zip SFX」：
+发布形式是 **zip 绿色包**，由 `pack-zip.ps1` 产出。不再生成任何单文件 exe。
 
-1. 把 `LogSentry.exe / LogParser.exe / LogParser.chm / queries.txt / 使用说明.txt` 以及
-   `NDP48-x86-x64-AllOS-ENU.exe`（.NET 4.8 离线包，121,346,568 B）放进 `.pkg/stage/LogSentry/`（一个 `LogSentry\` 子目录，
-   解压后就是一个文件夹，不会把 50 MB 的文件散到目标目录根上）。
-2. 用仓库自带的 `.tools/extra/7za.exe` 打包：`7za a -t7z -mx=5 -mhc=on .pkg\payload.7z LogSentry`
-   （installer 本身已是 cab 压缩，`-mx=9` 只省 2–3 MB 却慢很多）。
-3. `config.txt` = `;!@Install@!UTF-8!` + `sfx-config.txt` 正文（过滤 `;` 注释行）+
-   `;!@InstallEnd@!`，**UTF-8 无 BOM**（脚本里有 BOM 校验，有 BOM 直接 throw）。
-4. 三段字节拼接：`7z.sfx` + `config.txt` + `payload.7z` → `dist/LogSentry_Portable.exe`。
+### 两种包
 
-产物结构（`dist/LogSentry_Portable.exe`，51,478,763 B 时核对过）：
-前 214,528 B 与 `.tools/sfx/7z.sfx` 逐字节相同；偏移 214,528 起是 `;!@Install@!UTF-8!` 开头的
-155 B 配置；紧接着 `37 7A BC AF 27 1C`（7z 魔数）。
+| 包 | 命令 | 大小 | 内容 |
+| --- | --- | --- | --- |
+| 轻量包 `.pkg/LogSentry_v1.0.zip` | `pack-zip.ps1` | ≈1.0 MB | `LogSentry.exe`、`LogParser.exe`、`queries.txt`、`LogParser.chm`、`使用说明.txt` |
+| 完整包 `.pkg/LogSentry_v1.0_full.zip` | `pack-zip.ps1 -WithDotNet` | ≈116.7 MB | 上面全部 + `NDP48-x86-x64-AllOS-ENU.exe`（121,346,568 B） |
 
-**行为（实测，别期待自动启动）**：双击后弹的是 7-Zip 自己的对话框
-`7-Zip self-extracting archive / Extract to: <路径> [Extract][Cancel]`，用户选目录、点 Extract，
-再自己去 `LogSentry\` 里双击 `LogSentry.exe`。官方 GUI 模块不解析配置段，`GUIMode / Directory /
-RunProgram` 全被忽略（实测：旧产物双击后停在 Extract 对话框，轮询 10 秒既没有 `7zS*.tmp\LogSentry\`
-被创建，也没有主程序进程被拉起）。
+流程：
 
-**包内不管运行库**：`NDP48-x86-x64-AllOS-ENU.exe` 就是载荷里的一个普通文件，和 `使用说明.txt`
+1. 把文件拷进 `.pkg/zipstage/LogSentry/`（带一个 `LogSentry\` 子目录，解压后就是一个文件夹，
+   不会把 116 MB 的安装包散到目标目录根上）。必需项是 `LogSentry.exe / LogParser.exe / queries.txt`，
+   缺任何一个直接报错退出；可选项是 `dist\*.txt`（含 `使用说明.txt`）与 `LogParser.chm`，有就带。
+2. 用仓库自带的 `.tools/extra/7za.exe`（847,872 B，不用装 7-Zip）打包：
+   `7za a -tzip -mx=5 <out.zip> LogSentry`。`-mx=5` 是默认值；安装包本身已是 cab 压缩，
+   `-mx=9` 只省 2–3 MB 却慢很多。
+3. 打完跑一次 `7za t` 校验，打印大小 / 条目数 / SHA256，然后删掉暂存目录。
+
+产物目录结构（`7za l -sccUTF-8` 实测，中文条目名正常）：
+
+```
+LogSentry\LogParser.chm         584,632
+LogSentry\LogParser.exe       1,159,920
+LogSentry\LogSentry.exe         140,288
+LogSentry\queries.txt             9,444
+LogSentry\使用说明.txt           21,114
+```
+
+**包内不管运行库**：`NDP48-x86-x64-AllOS-ENU.exe` 就是包里的一个普通文件，和 `使用说明.txt`
 一样被解出来；缺运行库时用户自己双击安装。不检测、不弹询问框、不代跑安装程序。
-`pack-sfx.ps1 -DotNetInstaller <文件名>` 可以换成别的版本。
+现场顺序：解压 → 双击 NDP48 安装 → 重启 → 双击 `LogSentry.exe`。
 
 > **为什么带 4.8 而不是 4.0**：源码用了 `async/await`（`Engine.cs` 10 处、`MainForm.cs` 14 处、
 > `UiSmokeTest.cs` 9 处）和 `System.IO.Compression.ZipArchive`（`Exporters.cs` 生成 xlsx，6 处），
@@ -145,41 +234,71 @@ RunProgram` 全被忽略（实测：旧产物双击后停在 Extract 对话框�
 > `TypeLoadException: Could not load type 'System.Runtime.CompilerServices.IAsyncStateMachine' from assembly 'mscorlib, Version=4.0.0.0'`
 > （2026-11-12 在 Win7 + 随包 4.0 上实测到）。两条路：随包带 4.5+（现在带 4.8 离线包），
 > 或把代码降到 4.0（去 async、手写 zip 写，约 300 行，未采用）。
->
-> 手工往包里加文件（已验证）：`7za a dist\LogSentry_Portable.exe LogSentry\xxx.exe`
-> —— 7-Zip 会就地更新，`7z.sfx` 桩和 `config.txt` 都不受影响（拼好的 exe 也能被 7-Zip 当普通压缩包打开）。
 
-### 2026-11-12 的三次改道（按顺序，别再绕回去）
+### 2026-11-12 的四次改道（按顺序，别再绕回去）
 
 1. **自写托管外壳（CLR 4）**：`src/Launcher.cs` 用 `v4.0.30319\csc.exe` 编译 —— 目标机缺 .NET 4 时
-   mscoree 在进 `Main()` 之前就弹「初始化错误」，包里的 50 MB 安装包永远解不出来，形成死锁。
+   mscoree 在进 `Main()` 之前就弹「初始化错误」，包里的安装包永远解不出来，形成死锁。
 2. **自写托管外壳（CLR 2.0）**：改成 C# 2.0 + 手写 zip 解压（`DeflateStream`），Win7 的 3.5.1 能跑，
    Win10/11 却默认没开 3.5 —— 于是换成"原生壳"的讨论。
-3. **最终回到 7-Zip SFX**（用户决定）：原生 PE、任何 Windows 都能解压，代价是手动点一次 Extract。
-   自写外壳与 `pack-portable.ps1` 已删除（`git show 99c4853:src/Launcher.cs` 可找回）。
+3. **7-Zip SFX**（原生 PE，任何 Windows 都能解压）：能用，但双击只弹 7-Zip 自己的
+   「Extract to:」对话框，要手动点 Extract、再自己去双击主程序；而且 116.7 MB 的单文件超过
+   GitHub 100 MB 上限，只能挂 Release。
+4. **最终改成 zip**（用户决定，2026-11-12）：解压交给 Windows 自带资源管理器，无中间层；
+   轻量包 1.0 MB 可以直接入库，完整包挂 Release。
+   自写外壳、`pack-portable.ps1`、`pack-sfx.ps1`、`sfx-config.txt`、`.tools/sfx/` 全部删除
+   （`git show 99c4853:src/Launcher.cs` 可找回托管外壳）。
 
 > 判断 CLR 目标别用 `IMAGE_COR20_HEADER.MajorRuntimeVersion`：.NET 2.0 和 4.x 程序集这个值都是 2
 > （Minor 都是 5）。要看 `ImageRuntimeVersion` / mscorlib 的 AssemblyRef 版本，且只能用
 > Windows PowerShell 5.1 的 `ReflectionOnlyLoadFrom`（PS 7 的 .NET 8 加载不了 2.0 程序集）。
 
-### 为什么没有自动启动（实测结论，别再试官方模块）
+### 为什么不用 7-Zip SFX 自动启动（实测结论，别再试官方模块）
 
 - 官方 `7z.sfx / 7zS.sfx / 7zCon.sfx` 都是**纯解压模块**：二进制里扫不到 `RunProgram` /
-  `InstallPath` / `Directory` 任何配置键（ASCII 与 UTF-16 都扫过）。仓库里 `.tools/sfx/7z.sfx` 与
+  `InstallPath` / `Directory` 任何配置键（ASCII 与 UTF-16 都扫过）。`.tools/sfx/7z.sfx` 与
   `7zS.sfx` 的 MD5 都是 `E48CBBC210990C29F21D0EC949A8B5E6` —— 就是同一个 GUI 模块。
 - 拼包实测：`7zS.sfx` + `InstallPath` + `RunProgram="cmd.exe /c echo X > %TEMP%\sfx_main.txt"`
   → `exit = 0`，标记文件与目标目录都不存在；`7z.sfx` 用 `Directory=".\out\"` 同样没有
   `out_marker.txt`；`7zCon.sfx` 只认命令行 `-o`。即：**解压完就退出，不会启动主程序**。
 - 带安装脚本能力的是第三方改造版 `7zSD.sfx`（sFxSetup），官方 `7z2501-extra.7z` 里只有
   `7za.exe / 7za.dll / 7zxa.dll / Far/*`，没有它。
-- 若哪天要自动启动：把 `7z.sfx` 换成 `7zSD.sfx` 即可，`sfx-config.txt` 里的
-  `GUIMode / Directory / RunProgram` 一行都不用改。
+- 另外 `iexpress.exe`（Windows 自带的自解压）也试过：`iexpress /N /Q p.sed` 每次 `exit=1`
+  并报 `Unable to open the Cabinet file '...~pkg.CAB'`，单独跑 `makecab` 却正常，换 ASCII 短路径
+  `C:\LSPROBE` 仍失败。GUI 版能开（11.00.26100.1）。此路也已放弃。
 
 ### 载荷校验
 
-`Expand-Archive` / 任意 zip 工具解包 `.pkg/payload.zip` 后，逐文件 SHA256 与 `dist/` 对比应为 MATCH。
-当前正式包：`dist/LogSentry_Portable.exe` 51468733 B，
-SHA256 `A2794F3630E4531E15C387FB19AC21861121BCF6D8F2B3D36C4D166D59D61972`。
+```powershell
+$zip = ".\.pkg\LogSentry_v1.0.zip"
+$tmp = Join-Path $env:TEMP ("LSP_" + [guid]::NewGuid().ToString("N").Substring(0,8))
+Expand-Archive -Path $zip -DestinationPath $tmp
+$packed = Get-ChildItem (Join-Path $tmp "LogSentry") -File
+$source = Get-ChildItem ".\dist" -File
+foreach ($f in $packed) {
+    $s = $source | Where-Object { $_.Name -eq $f.Name }
+    $a = (Get-FileHash $f.FullName -Algorithm SHA256).Hash
+    $b = (Get-FileHash $s.FullName  -Algorithm SHA256).Hash
+    if ($a -eq $b) { "MATCH $($f.Name)" } else { "DIFF  $($f.Name)" }
+}
+```
+
+要点（都是踩过的坑）：
+
+- **别拼中文路径字符串**再 `Get-FileHash`：控制台是 CP936、PowerShell 内部是 UTF-16，
+  拼接后传进去会变成 `ʹ��˵��.txt`（乱码路径），报「路径不存在」。用 `Get-ChildItem -Filter "*.txt"`
+  拿到 FileInfo 对象再取 `.FullName`。
+- 看到 `7za l` 输出乱码不代表包坏了：加 `-sccUTF-8` 再列一次即正常。
+- `Expand-Archive` 解出来的中文名同样会被 PowerShell 显示成乱码，但哈希比对用对象路径是 MATCH 的。
+
+当前正式产物（2026-11-12，`pack-zip.ps1` 产出）：
+
+| 包 | 字节 | SHA256 |
+| --- | --- | --- |
+| `.pkg/LogSentry_v1.0.zip` | 1,088,382 | `A7E72007C2AB0C14E24A2E9B97C38A17D485969C92B47711074A2EFCACE9073C` |
+| `.pkg/LogSentry_v1.0_full.zip` | 122,369,464 | `2A18E5CA71F0D0E0EF02207E1B486D7E918BF178CE1A1E6D20B667B9CD9F31A1` |
+
+> 每次重新打包 SHA256 都会变（zip 里内嵌了文件修改时间），上面的值只用于核对同一次构建。
 
 ## 8. 源码维护注意
 

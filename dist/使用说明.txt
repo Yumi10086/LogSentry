@@ -9,24 +9,18 @@ LogSentry · Windows 日志一把梭分析
 一、怎么开始
 ------------
 
-用法 A：单文件（推荐拷给别人）
-  双击 LogSentry_Portable.exe → 弹出 7-Zip 自己的解压对话框：
+用法 A：绿色包（推荐拷给别人）
+  拿到的是一个 zip：LogSentry_v1.0.zip（轻量，1.0 MB）或
+  LogSentry_v1.0_full.zip（完整，116.7 MB，多带 .NET 4.8 安装包）。
 
-      ┌─ 7-Zip self-extracting archive ───────────────┐
-      │ Extract to:                                   │
-      │ C:\Users\...\AppData\Local\Temp   [ 浏览… ]   │
-      │                        [ Extract ]  [ Cancel ]│
-      └───────────────────────────────────────────────┘
-
-  把路径改成你想放的地方（建议 D:\LogSentry 这类固定目录，别留在临时目录里），
-  点 Extract，就在该目录下得到一整套文件：
+  右键 → 全部解压缩（Win10/11 自带，不需要装 7-Zip）→ 得到一个 LogSentry 文件夹：
 
       D:\LogSentry\LogSentry\LogSentry.exe
                             \LogParser.exe
                             \LogParser.chm
                             \queries.txt
                             \使用说明.txt
-                            \NDP48-x86-x64-AllOS-ENU.exe
+                            \NDP48-x86-x64-AllOS-ENU.exe   ← 只有完整包才有
 
   然后进这个 LogSentry\ 文件夹，双击 LogSentry.exe 启动（会弹 UAC，因为主程序清单写了
   requireAdministrator）。文件就放在那里不会消失，想长期用就用这个文件夹，改 queries.txt
@@ -40,8 +34,9 @@ LogSentry · Windows 日志一把梭分析
   NDP48-x86-x64-AllOS-ENU.exe（微软官方 .NET Framework 4.8 离线安装包，115.7 MB），
   装完重启一次，再双击 LogSentry.exe。
   安装包跟别的文件一样，就是个普通文件，自己双击装——解压这一步不需要任何 .NET
-  （解压器是 7-Zip 的原生模块）。Win7 系统太旧时安装器会先要求打 SHA-2 补丁
+  （解压用的是 Windows 自带的资源管理器）。Win7 系统太旧时安装器会先要求打 SHA-2 补丁
   （KB4474419 / KB4490628），按提示装完再跑一次即可。
+  现场顺序：解压 → 装 NDP48 → 重启 → 双击 LogSentry.exe。
 
 用法 B：文件夹（自己机器上长期用）
   把整个 dist 文件夹拷到任意位置，双击 LogSentry.exe。必需的两个文件是：
@@ -84,7 +79,7 @@ LogSentry · Windows 日志一把梭分析
       典型用法：加一个“查某个 IP 的登录”检测项，SQL 写成
           ... WHERE EventID = 4624 AND SourceIP = '%PARAM%'
       然后在框里填 192.168.1.50，就只查这个来源 IP 的成功登录。
-      说明：自带的 26 个检测项都没用 %PARAM%，这是留给你自己加项用的；
+      说明：自带的 29 个检测项都没用 %PARAM%，这是留给你自己加项用的；
             替换是纯字符串替换，SQL 里的单引号要自己写。
 
   输出格式 (-o:)：默认 NAT，五种都能用
@@ -124,8 +119,32 @@ LogSentry · Windows 日志一把梭分析
       勾上：完全按 LogParser 原始输出显示，列会很稀疏（截图里那种毛毛的间距就是这个），
             只有在需要逐字符复制原始输出时才勾。
 
+ 左栏·自定义检测项
+  第四页，给自己加/改检测项用，不用手工编辑 queries.txt。这一页里又分两个子页：
+
+  子页「我的检测项」
+    上面一张列表     你的自定义项（分组 · 名称）。按钮：新增一项 / 复制 / 删除
+    中间编辑区       编号（自动生成 user_1、user_2…，不给改）、分组、名称、
+                     SQL、备注，两个开关：
+                       · 默认勾选   —— 新项在“按分类勾选”页里默认就打勾
+                       · 停用此项   —— 停用后从「按分类勾选」页里整条消失（不是灰显）、
+                                      不参与执行；要恢复就去「内置项开关」子页重新勾上
+                     三个动作：保存 / 测试这条 / 放弃改动
+                     “测试这条”会用当前 SQL 实跑一次（30 秒超时），命中条数和
+                     前 6 行直接写到右边结果区，不打断你正在跑的分析
+
+  子页「内置项开关」
+    29 个自带项的复选框，铺满整页：取消勾选＝停用（「按分类勾选」页里随即消失），再勾上＝恢复
+    改完要回「我的检测项」点「保存」，否则只存在内存里，关掉就没了
+
+  保存位置：exe 同目录的 config\user-queries.txt（UTF-8）。它独立于 queries.txt，
+  以后升级、覆盖 queries.txt 都不会冲掉你自己加的项。
+
+  “停用内置项”只往 user-queries.txt 写一句 disabled: true，不改 queries.txt 本身；
+  想恢复就在同一页把勾重新打上，想彻底干净就删掉整个 config 目录。
+
 左栏·手动命令
-  第三页，专给“自带的 26 个检测项没覆盖到、临时想查点什么”这种情况用：
+  第三页，专给“自带的 29 个检测项没覆盖到、临时想查点什么”这种情况用：
   直接把 LogParser 命令写进去，按 Ctrl+Enter（或点“▶ 执行命令”）就跑，
   结果照样追加到右边结果区，也照样可以导出 txt / CSV / Excel。
 
@@ -233,17 +252,43 @@ TimeGenerated 是时间类型字段（T），必须这么比。
     LogParser 扫了多少条，不是命中多少条）。
 
 
-五、改配置：加一个检测项（不用改程序）
---------------------------------------
+五、加一个检测项（两种加法，都不用改程序）
+------------------------------------------
 
-配置文件 queries.txt 就在 exe 旁边，UTF-8，记事本可以编辑。格式：
+加法 A：界面里点（推荐，不用碰文件）
+
+  打开“自定义检测项”页签 → 新增一项 → 填分组、名称、SQL → 保存。
+  保存后立刻出现在“按分类勾选”页，程序不用重启。
+  内容是存到 config\user-queries.txt 的，升级不会丢；换台机器把它拷过去即可。
+
+加法 B：直接编辑文件（适合一次贴十几条、或者要发给同事）
+
+  编辑 exe 旁边的 config\user-queries.txt（没有就自己建一个 config 目录 + 空文件），
+  格式和 queries.txt 完全一样。改完点一下界面上的“重新载入配置”。
+
+  两个文件的区别：
+    queries.txt              出厂 29 项，升级/覆盖时会整份换掉，别往里加自己的项
+    config\user-queries.txt  你自己的项，永远不被覆盖，加载时按 id 合并进去
+
+  想停用某个内置项，不要删 queries.txt 里的条目，在 user-queries.txt 里写：
+
+    [logon_success]
+    disabled: true
+
+  只写 id + disabled 就够了，其余字段程序用出厂值补上。想恢复就删掉这段。
+
+格式（queries.txt 与 user-queries.txt 通用）：
 
     [id]                 ← 唯一标识，英文，不要重复
     label: 中文名        ← 显示在界面上的文字
-    log: Security        ← Security / System / Application / Sysmon …
     note: 这行是干什么的  ← 可选，显示在名字后面
     default: on          ← 可选，默认勾选
     query: SELECT ... FROM Security WHERE EventID = 4624   ← 一行写完
+
+  日志源不用写：程序从 query 里 FROM 后面那一项自动认出 Security / System，
+  结果显示区标题里会带上「[Security · 4624]」这样的标记。旧的 log: 行留着
+  也不会报错，程序直接忽略。带斜杠的现代通道（Sysmon、TaskScheduler、
+  PowerShell/Operational…）要先导成 .evtx 再用文件路径查，见本节末尾“附”。
 
 加完保存，重新打开程序就能看到新复选框（程序按配置动态生成界面，不用重新编译）。
 
@@ -251,31 +296,35 @@ TimeGenerated 是时间类型字段（T），必须这么比。
 
     [proc_created_4688]
     label: 进程创建 (4688)
-    log: Security
     note: 需要开启“审核进程创建”
     query: SELECT TimeGenerated, EXTRACT_TOKEN(Strings,1,'|') AS 用户, EXTRACT_TOKEN(Strings,5,'|') AS 进程, EXTRACT_TOKEN(Strings,8,'|') AS 命令行 FROM Security WHERE EventID = 4688
 
 示例 2：加 Sysmon 的事件 1（进程创建，含完整命令行）
 
+Sysmon 的通道名带斜杠，LogParser 32 位版直接写在 FROM 里会被当成文件路径去找
+（报 “Error searching for files in folder …”），所以先导出成快照：
+
+    wevtutil epl "Microsoft-Windows-Sysmon/Operational" "%TEMP%\Sysmon.evtx" /ow:true
+
+再把 FROM 指到这个文件（路径要写全，LogParser 不认 %TEMP% 这种变量）：
+
     [sysmon_proc]
     label: Sysmon 进程创建 (1)
-    log: Microsoft-Windows-Sysmon/Operational
-    query: SELECT TimeGenerated, EXTRACT_TOKEN(Strings,1,'|') AS 用户, EXTRACT_TOKEN(Strings,4,'|') AS 映像, EXTRACT_TOKEN(Strings,10,'|') AS 命令行 FROM "Microsoft-Windows-Sysmon/Operational" WHERE EventID = 1
+    query: SELECT TimeGenerated, EXTRACT_TOKEN(Strings,1,'|') AS 用户, EXTRACT_TOKEN(Strings,4,'|') AS 映像, EXTRACT_TOKEN(Strings,10,'|') AS 命令行 FROM 'C:\Users\你\AppData\Local\Temp\Sysmon.evtx' WHERE EventID = 1
 
 示例 3：拿参数当过滤条件（界面上“%PARAM%”填什么就查什么）
 
     [ip_login]
     label: 指定 IP 的登录
-    log: Security
     query: SELECT TimeGenerated, EXTRACT_TOKEN(Strings,5,'|') AS 用户 FROM Security WHERE EventID = 4624 AND Strings LIKE '%PARAM%'
 
-注意：log 名字里带空格或斜杠时，SQL 里要用双引号包起来（见示例 2）。
+注意：能直接读的只有 Security / System 这类经典日志，以及导出的 .evtx 文件（路径用单引号包住）。
 
 
 六、EXTRACT_TOKEN 的下标到底该写几？
 ------------------------------------
 
-Stringer 的下标强依赖事件模板，写错了不报错、只是取到空值。确认方法：
+Strings 的下标强依赖事件模板，写错了不报错、只是取到空值。确认方法：
 
   1) 在“五、字段核查工具”里勾上“原始 Strings 导出”，跑一次；
   2) 输出里每条记录的 Strings 是用 | 分隔的一长串：
@@ -287,6 +336,62 @@ Stringer 的下标强依赖事件模板，写错了不报错、只是取到空�
 
     LogParser.exe -i:EVT -o:NAT -rtp:-1 "SELECT TOP 3 Strings FROM Security WHERE EventID = 4624" > out.txt
 
+
+附：任务计划程序运营日志（100 / 129 / 200 / 201 / 141）怎么查
+--------------------------------------------------------------------
+
+这五个事件不在 Security 也不在 System，而在独立通道
+Microsoft-Windows-TaskScheduler/Operational。随包的 LogParser 是 32 位版本，
+读不了这种带斜杠的通道名（会报 “Error searching for files in folder …”），
+所以内置检测项里没有它们。要查就三步，全用 Windows 自带工具。
+
+1) 确认日志是否开启（它默认可能是关闭的）
+
+   管理员命令行：
+
+     wevtutil gl "Microsoft-Windows-TaskScheduler/Operational"
+     wevtutil sl "Microsoft-Windows-TaskScheduler/Operational" /e:true
+
+   图形界面：事件查看器 → 应用程序和服务日志 → Microsoft → Windows →
+   TaskScheduler → Operational → 右键「启用日志」。
+
+2) 导出快照（日志正在被写入也能导）
+
+     wevtutil epl "Microsoft-Windows-TaskScheduler/Operational" "%TEMP%\TSOp.evtx" /ow:true
+
+   导的是「到此刻为止」的快照；每次分析前重新导一次，旧文件会被覆盖。
+
+3) 在“手动命令”页把 FROM 指到这个文件（完整路径，单引号包住）
+
+     SELECT TOP 500 TimeGenerated AS 时间, EventID AS 事件ID, Strings AS 原始字段
+     FROM 'C:\Users\你\AppData\Local\Temp\TSOp.evtx' WHERE EventID = 129
+
+   先跑这条看清字段顺序（Strings 用 | 分隔，从 0 数），再按第六节的办法写
+   EXTRACT_TOKEN。索引随系统语言和版本会变，别照抄网上的数字。
+
+不想数索引就直接按内容抓（推荐先用这条）：
+
+     SELECT TOP 500 TimeGenerated AS 时间, EventID AS 事件ID, Message AS 消息
+     FROM 'C:\Users\你\AppData\Local\Temp\TSOp.evtx'
+     WHERE EventID = 129 AND (Message LIKE '%powershell%' OR Message LIKE '%cmd.exe%'
+       OR Message LIKE '%AppData%' OR Message LIKE '%.vbs%' OR Message LIKE '%.ps1%')
+
+五个 ID 各看什么：
+
+     100   任务已启动        ← 确认「它真的跑过」
+     129   已创建新进程      ← 带完整命令行和 PID，最有价值的证据
+     200   任务已计划启动    ← 确认触发器工作正常
+     201   任务已完成        ← 带结果码
+     141   任务已删除        ← 事后清理痕迹
+
+一次看全（FROM 换成你自己的导出路径）：
+
+     SELECT TOP 500 TimeGenerated AS 时间, EventID AS 事件ID, Strings AS 原始字段
+     FROM 'C:\Users\你\AppData\Local\Temp\TSOp.evtx'
+     WHERE EventID = 100 OR EventID = 129 OR EventID = 200 OR EventID = 201 OR EventID = 141
+
+服务侧的那几个不用这么折腾：7036（服务状态变更）、7040（启动类型变更）、
+4697（审计里的服务安装）已经是内置勾选项，直接在「按分类勾选」页勾就行。
 
 七、导出结果（txt / CSV / Excel 三选一）
 --------------------------------------

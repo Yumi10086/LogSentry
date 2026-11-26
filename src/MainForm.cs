@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -74,6 +74,21 @@ namespace LogSentry
         // 时 / 分直接做成 00~23、00~59 的下拉框：第一次上手也一眼看得出"这里能调时间"
         private ComboBox _cboFh, _cboFm, _cboTh, _cboTm;
         private Label _lblSelCount;
+
+        // 自定义检测项页（用户自己加项 / 停用内置项）
+        private string _userConfigPath;
+        private List<QueryItem> _userItems = new List<QueryItem>();
+        private TabPage _pageCustom;
+        private ListBox _lstCustom;
+        private ComboBox _cboCustomGroup;
+        private TextBox _txtCustomLabel;
+        private TextBox _txtCustomQuery;
+        private TextBox _txtCustomNote;
+        private CheckBox _chkCustomDefault;
+        private CheckBox _chkCustomDisabled;
+        private Label _lblCustomId;
+        private CheckedListBox _clbBuiltin;
+        private bool _loadingCustom;
 
         private const string StartButtonText = "▶  开始分析（F5）";
 
@@ -603,6 +618,9 @@ namespace LogSentry
             LoadManualHistory();
             UpdateManualPreview();
 
+            // ---------- 页四：自定义检测项（用户加项 / 停用内置项）
+            BuildCustomPage();
+
             _clbItems.Dock = DockStyle.Fill;
 
             // .NET Framework 的老毛病：SplitContainer 先把 Panel1 撑到 936，三个 TabPage
@@ -617,6 +635,633 @@ namespace LogSentry
         }
 
         private bool _syncingPages;
+
+        // ================================================================ 自定义检测项
+        //
+        // 设计取舍：
+        //  · 页面全部竖排（标签在上、控件在下）：左栏可被拖到 300px，横向两列一定会挤；
+        //  · 分组下拉用 DropDown（可输入）而不是 DropDownList：除能选已有分组，还能现场起新组；
+        //  · 停用内置项不另存清单，而是往 user-queries.txt 写一条同 id + disabled: true，
+        //    这样「合并规则」只有一条，界面与文件永远对得上；
+        //  · 「测试这条」走 LogParserRunner 单独跑一次，只把前几行贴到预览框，不污染结果区。
+
+        /// <summary>列表里的一行：显示用的短文本 + 对应的检测项。</summary>
+        private sealed class CustomEntry
+        {
+            public readonly QueryItem Item;
+            private readonly string _tag;
+            public CustomEntry(QueryItem item, string tag)
+            {
+                Item = item;
+                _tag = tag;
+            }
+            public override string ToString()
+            {
+                if (Item == null) return "";
+                string g = string.IsNullOrEmpty(Item.Group) ? "" : Item.Group + " · ";
+                string tail = Item.Disabled ? "（已停用）" : "";
+                return _tag + g + Item.Label + tail;
+            }
+        }
+
+        private void BuildCustomPage()
+        {
+            _pageCustom = new TabPage("自定义检测项");
+            _pageCustom.BackColor = Color.White;
+            _pageCustom.Padding = new Padding(6);
+
+            // 左栏只有 ~430x460 可用：一屏塞不下「列表 + 表单 + 预览 + 29 个内置项」，
+            // 所以这一页再分两个子页签，各自铺满，不用滚动。
+            TabControl inner = new TabControl();
+            inner.Dock = DockStyle.Fill;
+            inner.Name = "tabsCustomInner";
+            inner.Font = Font;
+
+            // ---------------------------------------------------------- 子页 1
+            TabPage pageMine = new TabPage("我的检测项");
+            pageMine.BackColor = Color.White;
+            pageMine.Padding = new Padding(8);
+
+            TableLayoutPanel t = new TableLayoutPanel();
+            t.Dock = DockStyle.Fill;
+            t.AutoSize = false;
+            t.ColumnCount = 1;
+            t.RowCount = 6;
+            t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+
+            Label hint = new Label();
+            hint.Text = "加自己的检测项、改内置项。点「保存」写进程序目录的 config\\user-queries.txt，"
+                + "删掉这个文件即全部恢复出厂。";
+            hint.AutoSize = true;
+            hint.MaximumSize = new Size(390, 0);
+            hint.Font = new Font(Font.FontFamily, 8F);
+            hint.ForeColor = Color.FromArgb(130, 138, 150);
+            hint.Margin = new Padding(0, 0, 0, 6);
+
+            _lstCustom = new ListBox();
+            _lstCustom.Name = "lstCustom";
+            _lstCustom.Dock = DockStyle.Fill;
+            _lstCustom.IntegralHeight = false;
+            _lstCustom.MinimumSize = new Size(0, 84);
+            _lstCustom.Margin = new Padding(0, 0, 0, 4);
+            _lstCustom.SelectedIndexChanged += delegate { OnCustomSelectionChanged(); };
+
+            FlowLayoutPanel listBtns = new FlowLayoutPanel();
+            listBtns.AutoSize = true;
+            listBtns.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            listBtns.WrapContents = true;
+            listBtns.Margin = new Padding(0, 0, 0, 6);
+
+            Button btnAdd = MkSmall("新增一项");
+            btnAdd.Name = "btnCustomAdd";
+            btnAdd.Click += delegate { OnCustomAdd(); };
+            Button btnDup = MkSmall("复制");
+            btnDup.Name = "btnCustomDup";
+            btnDup.Click += delegate { OnCustomDuplicate(); };
+            Button btnDel = MkSmall("删除");
+            btnDel.Name = "btnCustomDel";
+            btnDel.Click += delegate { OnCustomDelete(); };
+            listBtns.Controls.Add(btnAdd);
+            listBtns.Controls.Add(btnDup);
+            listBtns.Controls.Add(btnDel);
+
+            // 表单用「左标签 + 右控件」两列，比每行一个标题省一半高度
+            TableLayoutPanel form = new TableLayoutPanel();
+            form.AutoSize = true;
+            form.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            form.Dock = DockStyle.Top;
+            form.ColumnCount = 2;
+            form.RowCount = 5;
+            form.Margin = new Padding(0, 0, 0, 6);
+            form.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 52F));
+            form.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+
+            _lblCustomId = new Label();
+            _lblCustomId.Text = "—";
+            _lblCustomId.Name = "lblCustomId";
+            _lblCustomId.AutoSize = true;
+            _lblCustomId.Font = new Font("Consolas", 8F);
+            _lblCustomId.ForeColor = Color.FromArgb(140, 148, 160);
+            _lblCustomId.Margin = new Padding(0, 5, 4, 4);
+
+            _cboCustomGroup = new ComboBox();
+            _cboCustomGroup.Name = "cboCustomGroup";
+            _cboCustomGroup.DropDownStyle = ComboBoxStyle.DropDown;
+            _cboCustomGroup.Dock = DockStyle.Top;
+            _cboCustomGroup.Margin = new Padding(0, 0, 0, 4);
+
+            _txtCustomLabel = new TextBox();
+            _txtCustomLabel.Name = "txtCustomLabel";
+            _txtCustomLabel.Dock = DockStyle.Top;
+            _txtCustomLabel.BorderStyle = BorderStyle.FixedSingle;
+            _txtCustomLabel.Margin = new Padding(0, 0, 0, 4);
+
+            _txtCustomQuery = new TextBox();
+            _txtCustomQuery.Name = "txtCustomQuery";
+            _txtCustomQuery.Multiline = true;
+            _txtCustomQuery.ScrollBars = ScrollBars.Vertical;
+            _txtCustomQuery.AcceptsReturn = true;
+            _txtCustomQuery.WordWrap = true;
+            _txtCustomQuery.Dock = DockStyle.Fill;
+            _txtCustomQuery.MinimumSize = new Size(0, 64);
+            _txtCustomQuery.Font = new Font("Consolas", 9F);
+            _txtCustomQuery.BorderStyle = BorderStyle.FixedSingle;
+            _txtCustomQuery.Margin = new Padding(0, 0, 0, 4);
+
+            _txtCustomNote = new TextBox();
+            _txtCustomNote.Name = "txtCustomNote";
+            _txtCustomNote.Dock = DockStyle.Top;
+            _txtCustomNote.BorderStyle = BorderStyle.FixedSingle;
+            _txtCustomNote.Margin = new Padding(0, 0, 0, 4);
+
+            form.Controls.Add(MkInlineLabel("编号"), 0, 0);
+            form.Controls.Add(_lblCustomId, 1, 0);
+            form.Controls.Add(MkInlineLabel("分组"), 0, 1);
+            form.Controls.Add(_cboCustomGroup, 1, 1);
+            form.Controls.Add(MkInlineLabel("名称"), 0, 2);
+            form.Controls.Add(_txtCustomLabel, 1, 2);
+            form.Controls.Add(MkInlineLabel("SQL"), 0, 3);
+            form.Controls.Add(_txtCustomQuery, 1, 3);
+            form.Controls.Add(MkInlineLabel("备注"), 0, 4);
+            form.Controls.Add(_txtCustomNote, 1, 4);
+
+            FlowLayoutPanel chkRow = new FlowLayoutPanel();
+            chkRow.AutoSize = true;
+            chkRow.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            chkRow.WrapContents = true;
+            chkRow.Margin = new Padding(0, 0, 0, 6);
+
+            _chkCustomDefault = new CheckBox();
+            _chkCustomDefault.Name = "chkCustomDefault";
+            _chkCustomDefault.Text = "默认勾选";
+            _chkCustomDefault.AutoSize = true;
+            _chkCustomDefault.Margin = new Padding(0, 0, 14, 0);
+
+            _chkCustomDisabled = new CheckBox();
+            _chkCustomDisabled.Name = "chkCustomDisabled";
+            _chkCustomDisabled.Text = "停用此项（不参与执行）";
+            _chkCustomDisabled.AutoSize = true;
+            chkRow.Controls.Add(_chkCustomDefault);
+            chkRow.Controls.Add(_chkCustomDisabled);
+
+            FlowLayoutPanel actRow = new FlowLayoutPanel();
+            actRow.AutoSize = true;
+            actRow.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            actRow.WrapContents = true;
+
+            Button btnSave = MkButton("保存", 0, 0, 76);
+            btnSave.Name = "btnCustomSave";
+            btnSave.Click += delegate { OnCustomSave(); };
+            Button btnTest = MkButton("测试这条", 0, 0, 96);
+            btnTest.Name = "btnCustomTest";
+            btnTest.Click += delegate { OnCustomTest(); };
+            Button btnReload = MkSmall("放弃改动");
+            btnReload.Name = "btnCustomReload";
+            btnReload.Click += delegate { LoadConfigSafe(null); SetStatus("已重新载入配置，未保存的改动已丢弃", false); };
+            actRow.Controls.Add(btnSave);
+            actRow.Controls.Add(btnTest);
+            actRow.Controls.Add(btnReload);
+
+            t.Controls.Add(hint, 0, 0);
+            t.Controls.Add(_lstCustom, 0, 1);
+            t.Controls.Add(listBtns, 0, 2);
+            t.Controls.Add(form, 0, 3);
+            t.Controls.Add(chkRow, 0, 4);
+            t.Controls.Add(actRow, 0, 5);
+
+            // 列表吃剩余高度，表单按内容自适应；窗口拉高时列表跟着长
+            t.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            t.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            t.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            t.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            t.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            t.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            pageMine.Controls.Add(t);
+
+            // ---------------------------------------------------------- 子页 2
+            TabPage pageBuiltin = new TabPage("内置项开关");
+            pageBuiltin.BackColor = Color.White;
+            pageBuiltin.Padding = new Padding(8);
+
+            TableLayoutPanel tb = new TableLayoutPanel();
+            tb.Dock = DockStyle.Fill;
+            tb.AutoSize = false;
+            tb.ColumnCount = 1;
+            tb.RowCount = 2;
+            tb.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+
+            Label hint2 = new Label();
+            hint2.Text = "取消勾选＝停用，停用后「按分类勾选」页里就不再显示它。改动同样要回「我的检测项」点「保存」。";
+            hint2.AutoSize = true;
+            hint2.MaximumSize = new Size(390, 0);
+            hint2.Font = new Font(Font.FontFamily, 8F);
+            hint2.ForeColor = Color.FromArgb(130, 138, 150);
+            hint2.Margin = new Padding(0, 0, 0, 6);
+
+            _clbBuiltin = new CheckedListBox();
+            _clbBuiltin.Name = "clbBuiltin";
+            _clbBuiltin.Dock = DockStyle.Fill;
+            _clbBuiltin.IntegralHeight = false;
+            _clbBuiltin.CheckOnClick = true;
+            _clbBuiltin.MinimumSize = new Size(0, 120);
+            _clbBuiltin.Margin = new Padding(0);
+            _clbBuiltin.ItemCheck += delegate(object s, ItemCheckEventArgs e)
+            {
+                if (_loadingCustom) return;
+                CustomEntry entry = _clbBuiltin.Items[e.Index] as CustomEntry;
+                if (entry == null || entry.Item == null) return;
+                // ItemCheck 里还改不了 CheckedItems，按 e.NewValue 判断即可
+                ApplyBuiltinToggle(entry.Item.Id, e.NewValue == CheckState.Checked);
+            };
+
+            tb.Controls.Add(hint2, 0, 0);
+            tb.Controls.Add(_clbBuiltin, 0, 1);
+            tb.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            tb.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+
+            pageBuiltin.Controls.Add(tb);
+
+            inner.TabPages.Add(pageMine);
+            inner.TabPages.Add(pageBuiltin);
+            _pageCustom.Controls.Add(inner);
+            _tabs.TabPages.Add(_pageCustom);
+        }
+
+        /// <summary>表单左侧的行内标签（「左标签 + 右控件」两列布局用）。</summary>
+        private Label MkInlineLabel(string text)
+        {
+            Label l = new Label();
+            l.Text = text;
+            l.AutoSize = true;
+            l.Font = new Font(Font.FontFamily, 8F);
+            l.ForeColor = Color.FromArgb(110, 118, 130);
+            l.Margin = new Padding(0, 6, 4, 0);
+            return l;
+        }
+
+        /// <summary>窄栏里的字段小标题，统一留白，别在每处重复写字号。</summary>
+        private Label MkFieldLabel(string text)
+        {
+            Label l = new Label();
+            l.Text = text;
+            l.AutoSize = true;
+            l.Font = new Font(Font.FontFamily, 8F);
+            l.ForeColor = Color.FromArgb(110, 118, 130);
+            l.Margin = new Padding(0, 0, 0, 2);
+            return l;
+        }
+
+        /// <summary>按当前 _config / _userItems 重刷「我的检测项」与「内置项」两个列表。</summary>
+        private void RefreshCustomUi()
+        {
+            if (_lstCustom == null || _clbBuiltin == null) return;
+            _loadingCustom = true;
+            try
+            {
+                string keepId = null;
+                CustomEntry cur = _lstCustom.SelectedItem as CustomEntry;
+                if (cur != null && cur.Item != null) keepId = cur.Item.Id;
+
+                _lstCustom.Items.Clear();
+                if (_userItems != null)
+                {
+                    for (int i = 0; i < _userItems.Count; i++)
+                        _lstCustom.Items.Add(new CustomEntry(_userItems[i], ""));
+                }
+
+                // 分组候选：出厂 + 用户里出现过的分组
+                string keepGroup = _cboCustomGroup.Text;
+                _cboCustomGroup.Items.Clear();
+                HashSet<string> seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                if (_config != null)
+                {
+                    for (int i = 0; i < _config.Items.Count; i++)
+                    {
+                        string g = _config.Items[i].Group;
+                        if (!string.IsNullOrEmpty(g) && seen.Add(g)) _cboCustomGroup.Items.Add(g);
+                    }
+                }
+                if (seen.Add("我的检测项")) _cboCustomGroup.Items.Add("我的检测项");
+                if (keepGroup.Length > 0) _cboCustomGroup.Text = keepGroup;
+
+                _clbBuiltin.Items.Clear();
+                if (_config != null)
+                {
+                    for (int i = 0; i < _config.Items.Count; i++)
+                    {
+                        QueryItem it = _config.Items[i];
+                        if (it.Source != "builtin") continue;
+                        int idx = _clbBuiltin.Items.Add(new CustomEntry(it, ""));
+                        _clbBuiltin.SetItemChecked(idx, !it.Disabled);
+                    }
+                }
+
+                if (keepId != null)
+                {
+                    for (int i = 0; i < _lstCustom.Items.Count; i++)
+                    {
+                        CustomEntry e = _lstCustom.Items[i] as CustomEntry;
+                        if (e != null && e.Item != null && string.Equals(e.Item.Id, keepId, StringComparison.OrdinalIgnoreCase))
+                        {
+                            _lstCustom.SelectedIndex = i;
+                            break;
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                _loadingCustom = false;
+            }
+            if (_lstCustom.SelectedItem == null) OnCustomSelectionChanged();
+            UpdateCountLabel();
+        }
+
+        private CustomEntry SelectedCustomEntry()
+        {
+            return _lstCustom == null ? null : _lstCustom.SelectedItem as CustomEntry;
+        }
+
+        private void OnCustomSelectionChanged()
+        {
+            if (_loadingCustom) return;
+            CustomEntry e = SelectedCustomEntry();
+            _loadingCustom = true;
+            try
+            {
+                if (e == null || e.Item == null)
+                {
+                    _lblCustomId.Text = "—";
+                    _txtCustomLabel.Text = "";
+                    _cboCustomGroup.Text = "";
+                    _txtCustomQuery.Text = "";
+                    _txtCustomNote.Text = "";
+                    _chkCustomDefault.Checked = false;
+                    _chkCustomDisabled.Checked = false;
+                    _txtCustomLabel.Enabled = false;
+                    _txtCustomQuery.Enabled = false;
+                    _txtCustomNote.Enabled = false;
+                    _cboCustomGroup.Enabled = false;
+                    _chkCustomDefault.Enabled = false;
+                    _chkCustomDisabled.Enabled = false;
+                    return;
+                }
+                QueryItem it = e.Item;
+                _lblCustomId.Text = it.Id;
+                _txtCustomLabel.Text = it.Label;
+                _cboCustomGroup.Text = it.Group;
+                _txtCustomQuery.Text = it.Query;
+                _txtCustomNote.Text = it.Note;
+                _chkCustomDefault.Checked = it.DefaultOn;
+                _chkCustomDisabled.Checked = it.Disabled;
+                _txtCustomLabel.Enabled = true;
+                _txtCustomQuery.Enabled = true;
+                _txtCustomNote.Enabled = true;
+                _cboCustomGroup.Enabled = true;
+                _chkCustomDefault.Enabled = true;
+                _chkCustomDisabled.Enabled = true;
+            }
+            finally { _loadingCustom = false; }
+        }
+
+        /// <summary>把编辑框里的内容写回选中的用户项（只改内存，保存时才落盘）。</summary>
+        private bool FlushEditorToItem()
+        {
+            CustomEntry e = SelectedCustomEntry();
+            if (e == null || e.Item == null) return false;
+            QueryItem it = e.Item;
+            it.Label = _txtCustomLabel.Text.Trim();
+            it.Group = _cboCustomGroup.Text.Trim();
+            it.Query = _txtCustomQuery.Text.Trim();
+            it.Note = _txtCustomNote.Text.Trim();
+            it.DefaultOn = _chkCustomDefault.Checked;
+            it.Disabled = _chkCustomDisabled.Checked;
+            it.Source = "user";
+            it.InvalidateLogSource();
+            return true;
+        }
+
+        private void OnCustomAdd()
+        {
+            FlushEditorToItem();
+            List<QueryItem> all = new List<QueryItem>();
+            if (_config != null) all.AddRange(_config.Items);
+            QueryItem it = new QueryItem();
+            it.Id = UserQueries.NewId(all);
+            it.Label = "新建检测项";
+            it.Group = _cboCustomGroup.Text.Trim().Length > 0 ? _cboCustomGroup.Text.Trim() : "我的检测项";
+            it.Query = "SELECT TOP 20 TimeGenerated, EventID FROM System WHERE EventID = 7045";
+            it.DefaultOn = false;
+            it.Source = "user";
+            _userItems.Add(it);
+            RefreshCustomUi();
+            _lstCustom.SelectedIndex = _lstCustom.Items.Count - 1;
+            _txtCustomLabel.Focus();
+            _txtCustomLabel.SelectAll();
+            SetStatus("已新增一项，填好后点「保存」", false);
+        }
+
+        private void OnCustomDuplicate()
+        {
+            if (!FlushEditorToItem()) { SetStatus("先在列表里选一项再复制", false); return; }
+            CustomEntry e = SelectedCustomEntry();
+            QueryItem src = e.Item;
+            List<QueryItem> all = new List<QueryItem>();
+            if (_config != null) all.AddRange(_config.Items);
+            QueryItem it = new QueryItem();
+            it.Id = UserQueries.NewId(all);
+            it.Label = src.Label + " 副本";
+            it.Group = src.Group;
+            it.Query = src.Query;
+            it.Note = src.Note;
+            it.DefaultOn = src.DefaultOn;
+            it.Disabled = false;
+            it.Source = "user";
+            _userItems.Add(it);
+            RefreshCustomUi();
+            _lstCustom.SelectedIndex = _lstCustom.Items.Count - 1;
+            SetStatus("已复制一项，点「保存」生效", false);
+        }
+
+        private void OnCustomDelete()
+        {
+            CustomEntry e = SelectedCustomEntry();
+            if (e == null || e.Item == null) { SetStatus("先在列表里选一项再删除", false); return; }
+            DialogResult r = MessageBox.Show(this,
+                "确定从用户配置里删掉这一项吗？\r\n\r\n" + e.ToString()
+                + "\r\n\r\n（如果是「停用内置项」的记录，删掉它就等于重新启用该内置项。）",
+                "删除检测项", MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
+            if (r != DialogResult.OK) return;
+            _userItems.Remove(e.Item);
+            RefreshCustomUi();
+            SetStatus("已从列表移除，点「保存」写入文件", false);
+        }
+
+        private void OnCustomSave()
+        {
+            if (!FlushEditorToItem())
+            {
+                SetStatus("列表里还没有项：先点「新增一项」", false);
+                return;
+            }
+            // 校验：id 唯一、名称与 SQL 必填
+            HashSet<string> ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < _userItems.Count; i++)
+            {
+                QueryItem it = _userItems[i];
+                if (it.Id.Length == 0) { SetStatus("有一项缺少编号，无法保存", false); return; }
+                if (!ids.Add(it.Id)) { SetStatus("编号重复：" + it.Id, false); return; }
+                bool isStub = it.Disabled && it.Query.Length == 0;   // 只写停用标记的合法简写
+                if (!isStub)
+                {
+                    if (it.Label.Length == 0) { SetStatus("第 " + (i + 1) + " 项缺少名称", false); return; }
+                    if (it.Query.Length == 0) { SetStatus("第 " + (i + 1) + " 项缺少 SQL", false); return; }
+                }
+            }
+            try
+            {
+                UserQueries.Save(_userConfigPath, _userItems);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, "写配置文件失败：\r\n" + _userConfigPath + "\r\n\r\n" + ex.Message,
+                    "保存失败", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            // 重新走一遍「出厂 + 用户」合并，勾选页与两个列表一起刷新
+            LoadConfigSafe(null);
+            SetStatus("已保存 " + _userItems.Count + " 条用户配置：" + _userConfigPath, false);
+        }
+
+        /// <summary>内置项勾选/取消：取消 = 往用户配置里写同 id + disabled: true。</summary>
+        private void ApplyBuiltinToggle(string id, bool enabled)
+        {
+            if (string.IsNullOrEmpty(id)) return;
+            QueryItem builtin = null;
+            if (_config != null)
+            {
+                for (int i = 0; i < _config.Items.Count; i++)
+                {
+                    if (string.Equals(_config.Items[i].Id, id, StringComparison.OrdinalIgnoreCase))
+                    {
+                        builtin = _config.Items[i];
+                        break;
+                    }
+                }
+            }
+            if (builtin == null) return;
+
+            int at = -1;
+            for (int i = 0; i < _userItems.Count; i++)
+            {
+                if (string.Equals(_userItems[i].Id, id, StringComparison.OrdinalIgnoreCase)) { at = i; break; }
+            }
+
+            if (enabled)
+            {
+                // 重新启用：把用户侧的覆盖记录整个移除（用户自建项不会出现在这里）
+                if (at >= 0 && _userItems[at].Disabled) _userItems.RemoveAt(at);
+            }
+            else
+            {
+                QueryItem stub;
+                if (at >= 0) stub = _userItems[at];
+                else
+                {
+                    stub = new QueryItem();
+                    stub.Id = builtin.Id;
+                    stub.Label = builtin.Label;
+                    stub.Group = builtin.Group;
+                    stub.Query = builtin.Query;
+                    stub.Note = builtin.Note;
+                    stub.DefaultOn = builtin.DefaultOn;
+                    stub.Source = "user";
+                    _userItems.Add(stub);
+                }
+                stub.Disabled = true;
+            }
+
+            try
+            {
+                UserQueries.Save(_userConfigPath, _userItems);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, "写配置文件失败：\r\n" + ex.Message, "保存失败",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            LoadConfigSafe(null);
+            SetStatus(enabled ? ("已重新启用：" + builtin.Label) : ("已停用：" + builtin.Label + "（写进用户配置）"), false);
+        }
+
+        /// <summary>用当前 SQL 单独试跑一次（30 秒超时），结果直接写进右侧输出区。</summary>
+        private async void OnCustomTest()
+        {
+            string sql = _txtCustomQuery.Text.Trim();
+            if (sql.Length == 0) { SetStatus("SQL 是空的，先写一条再测", false); return; }
+
+            LogParserRunner.Options opt = BuildOptions();
+            opt.TimeoutSeconds = 30;
+            opt.OutputFormat = LogParserRunner.EffectiveFormat(opt);
+
+            QueryItem probe = new QueryItem();
+            probe.Id = "custom_preview";
+            probe.Label = _txtCustomLabel.Text.Trim();
+            probe.Query = sql;
+            probe.InvalidateLogSource();
+
+            string title = probe.Label.Length > 0 ? probe.Label : "(未命名)";
+            WriteLineColored("── 测试自定义检测项：" + title + " ──", Color.FromArgb(70, 110, 190), true);
+            SetStatus("测试中…（最多 30 秒），结果写到右侧", false);
+            try
+            {
+                LogParserRunner runner = new LogParserRunner();
+                QueryResult r = await runner.RunAsync(opt, probe, CancellationToken.None);
+                if (r == null)
+                {
+                    WriteLineColored("失败：没有返回结果", Color.Firebrick, false);
+                    SetStatus("测试失败：没有返回结果", false);
+                    return;
+                }
+                if (!r.Ok)
+                {
+                    WriteLineColored("失败：" + (r.Error == null ? "未知错误" : r.Error), Color.Firebrick, false);
+                    SetStatus("测试失败，原因见右侧输出", false);
+                    return;
+                }
+                WriteLineColored("命中 " + r.ElementCount + " 条 / 用时 "
+                    + ((int)r.Elapsed.TotalMilliseconds) + " ms，下面是前 6 行",
+                    Color.FromArgb(60, 66, 74), false);
+                AppendResultText(FirstLines(r.Output, 6));
+                FlushPending();
+                SetStatus("测试完成：命中 " + r.ElementCount + " 条，结果在右侧", false);
+            }
+            catch (Exception ex)
+            {
+                WriteLineColored("失败：" + ex.Message, Color.Firebrick, false);
+                SetStatus("测试失败，原因见右侧输出", false);
+            }
+        }
+
+        /// <summary>取前 n 行（右侧输出区只贴 6 行，不刷屏）。</summary>
+        private static string FirstLines(string text, int n)
+        {
+            if (string.IsNullOrEmpty(text)) return "(无输出)";
+            string[] lines = text.Replace("\r\n", "\n").Split('\n');
+            StringBuilder sb = new StringBuilder();
+            int used = 0;
+            for (int i = 0; i < lines.Length && used < n; i++)
+            {
+                if (lines[i].Trim().Length == 0) continue;
+                if (used > 0) sb.Append("\r\n");
+                sb.Append(lines[i]);
+                used++;
+            }
+            if (lines.Length > n) sb.Append("\r\n…（只显示前 " + n + " 行）");
+            return sb.ToString();
+        }
 
         /// <summary>
         /// 把每个 TabPage 的尺寸强制同步到 TabControl 的显示区。
@@ -1107,8 +1752,15 @@ namespace LogSentry
                 path = candidate;
             }
             _configPath = path;
-            _config = ConfigLoader.Load(path);
+            _userConfigPath = UserQueries.PathFor(_exeDir);
+            // 出厂项 + 用户项按 id 合并：用户写同 id 就覆盖字段，写 disabled: true 就停用
+            _config = ConfigLoader.LoadMerged(path, _userConfigPath);
+            // 用户项另存一份「原始列表」：界面编辑的就是它，保存时整体写回文件
+            ConfigLoadResult rawUser = ConfigLoader.LoadOptional(_userConfigPath);
+            _userItems = rawUser.Items;
+            for (int i = 0; i < _userItems.Count; i++) _userItems[i].Source = "user";
             RebuildCheckboxes();
+            RefreshCustomUi();
         }
 
         private void RebuildCheckboxes()
@@ -1138,6 +1790,9 @@ namespace LogSentry
                 for (int i = 0; i < _config.Items.Count; i++)
                 {
                     QueryItem item = _config.Items[i];
+                    // 被停用的项在「按分类勾选」页里完全不出现（不是灰显），
+                    // 免得一屏里挂着一堆点不动的条目；要恢复去「内置项开关」子页重新勾上。
+                    if (item.Disabled) continue;
                     if (item.Group != lastGroup)
                     {
                         if (lastGroup != null) y += 10;
@@ -1174,6 +1829,16 @@ namespace LogSentry
                     _panelItems.Controls.Add(cb);
                     _checkBoxes.Add(cb);
                     y += 26;
+                }
+
+                if (_checkBoxes.Count == 0)
+                {
+                    Label allOff = new Label();
+                    allOff.Text = "所有检测项都被停用了。\r\n去「自定义检测项 → 内置项开关」把要用的勾上，回去点「保存」即可恢复。";
+                    allOff.AutoSize = true;
+                    allOff.Location = new Point(8, 8);
+                    allOff.ForeColor = Color.FromArgb(120, 90, 40);
+                    _panelItems.Controls.Add(allOff);
                 }
 
                 AppendErrorBanner();
@@ -1221,8 +1886,18 @@ namespace LogSentry
             _suppressCheckEvents = true;
             try
             {
-                for (int i = 0; i < _checkBoxes.Count; i++) _checkBoxes[i].Checked = on;
-                for (int i = 0; i < _clbItems.Items.Count; i++) _clbItems.SetItemChecked(i, on);
+                for (int i = 0; i < _checkBoxes.Count; i++)
+                {
+                    // 被停用的项是禁用状态的复选框，改它也没意义，直接跳过
+                    if (!_checkBoxes[i].Enabled) continue;
+                    _checkBoxes[i].Checked = on;
+                }
+                for (int i = 0; i < _clbItems.Items.Count; i++)
+                {
+                    QueryItem it = _clbItems.Items[i] as QueryItem;
+                    if (it != null && it.Disabled) continue;
+                    _clbItems.SetItemChecked(i, on);
+                }
             }
             finally { _suppressCheckEvents = false; }
             UpdateCountLabel();
@@ -1236,7 +1911,7 @@ namespace LogSentry
                 for (int i = 0; i < _checkBoxes.Count; i++)
                 {
                     QueryItem it = _checkBoxes[i].Tag as QueryItem;
-                    _checkBoxes[i].Checked = it != null && it.DefaultOn;
+                    _checkBoxes[i].Checked = it != null && it.DefaultOn && !it.Disabled;
                 }
             }
             finally { _suppressCheckEvents = false; }
@@ -1274,7 +1949,7 @@ namespace LogSentry
                     if (_checkBoxes[i].Checked)
                     {
                         QueryItem it = _checkBoxes[i].Tag as QueryItem;
-                        if (it != null) sel.Add(it);
+                        if (it != null && !it.Disabled) sel.Add(it);
                     }
                 }
             }
@@ -1300,7 +1975,13 @@ namespace LogSentry
         private void UpdateCountLabel()
         {
             List<QueryItem> sel = GetSelectedItems();
-            int total = _config == null ? 0 : _config.Items.Count;
+            // 分母只算「可用项」：被停用的内置项灰显在列表里，但不算进可选总数
+            int total = 0;
+            if (_config != null)
+            {
+                for (int i = 0; i < _config.Items.Count; i++)
+                    if (!_config.Items[i].Disabled) total++;
+            }
             _tsslCount.Text = "已选 " + sel.Count + " / " + total;
             if (_lblSelCount != null)
                 _lblSelCount.Text = "当前已选 " + sel.Count + " 个检测项";
@@ -1731,9 +2412,9 @@ namespace LogSentry
             QueryItem item = new QueryItem();
             item.Id = "manual";
             item.Label = "手动命令";
-            item.LogName = "(手动输入)";
             item.ShowEventIds = false;
             item.Query = sql;
+            item.InvalidateLogSource();
 
             SaveManualHistory(_txtManual.Text);
 

@@ -43,6 +43,75 @@ namespace LogSentry
                 + " 字符 / 一致=" + sameText);
             Check("queries.txt 与内置默认配置一致", sameText);
 
+            // 1c) 用户自定义检测项：出厂 <exe>\queries.txt 与用户 <exe>\config\user-queries.txt 合并加载。
+            //     要覆盖三件事：用户新增项能进来、内置项能被停用、停用空壳项不算配置错误。
+            string customTmpDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
+                "logsentry_cfg_" + System.Guid.NewGuid().ToString("N").Substring(0, 8));
+            System.IO.Directory.CreateDirectory(customTmpDir);
+            string customUserPath = System.IO.Path.Combine(customTmpDir, "user-queries.txt");
+            try
+            {
+                string userText =
+                    "# 自检用临时配置\n" +
+                    "[user_1]\n" +
+                    "label: 自检自定义项\n" +
+                    "group: 我的自定义\n" +
+                    "query: SELECT TOP 3 TimeGenerated FROM Security WHERE EventID = 4624\n" +
+                    "\n" +
+                    "[logon_success]\n" +
+                    "disabled: true\n";
+                System.IO.File.WriteAllText(customUserPath, userText, new UTF8Encoding(true));
+
+                ConfigLoadResult merged = ConfigLoader.LoadMerged(cfgPath, customUserPath);
+                Console.WriteLine("[1c] 合并后 " + merged.Items.Count + " 项（出厂 " + cfg.Items.Count
+                    + "）/ 警告 " + merged.Errors.Count);
+                for (int i = 0; i < merged.Errors.Count; i++) Console.WriteLine("    ! " + merged.Errors[i]);
+
+                QueryItem custom = null;
+                QueryItem disabledOne = null;
+                for (int i = 0; i < merged.Items.Count; i++)
+                {
+                    if (merged.Items[i].Id == "user_1") custom = merged.Items[i];
+                    if (merged.Items[i].Id == "logon_success") disabledOne = merged.Items[i];
+                }
+                Check("合并后没有解析警告", merged.Errors.Count == 0);
+                Check("用户项数量 = 出厂 + 1", merged.Items.Count == cfg.Items.Count + 1);
+                Check("用户项被标记为 user 来源", custom != null && custom.Source == "user");
+                Check("用户项标签与 SQL 保留", custom != null
+                    && custom.Label == "自检自定义项"
+                    && custom.Query.IndexOf("FROM Security", StringComparison.Ordinal) > 0);
+                Check("内置项能被 disabled: true 停用", disabledOne != null && disabledOne.Disabled);
+                Check("停用项仍保留原 SQL", disabledOne != null && disabledOne.Query.Length > 0);
+                Check("停用项标签仍会自动推出日志源", disabledOne != null
+                    && disabledOne.DisplayLabel.IndexOf("[Security", StringComparison.Ordinal) >= 0);
+
+                // UserQueries.Save → LoadOptional 往返：写出去再读回来，条数和 disabled 都得在
+                string roundPath = System.IO.Path.Combine(customTmpDir, "roundtrip.txt");
+                List<QueryItem> toSave = new List<QueryItem>();
+                toSave.Add(custom);
+                toSave.Add(disabledOne);
+                UserQueries.Save(roundPath, toSave);
+                ConfigLoadResult back = ConfigLoader.LoadOptional(roundPath);
+                Console.WriteLine("[1c] 写入再读回 " + back.Items.Count + " 项 / 警告 " + back.Errors.Count);
+                Check("Save→Load 条数一致", back.Items.Count == 2);
+                Check("Save→Load 保留 disabled", back.Items.Count == 2 && back.Items[1].Disabled);
+                Check("Save→Load 不丢中文标签", back.Items.Count == 2 && back.Items[0].Label == "自检自定义项");
+                Check("user-queries.txt 写成 UTF-8 带 BOM",
+                    System.IO.File.ReadAllBytes(roundPath)[0] == 0xEF);
+
+                // 编号生成：已有 user_1 时要顺延，不能撞车
+                string freshId = UserQueries.NewId(back.Items);
+                Console.WriteLine("[1c] 新编号 = " + freshId);
+                Check("新编号不与现有 Id 冲突", freshId == "user_2");
+                Check("用户配置路径 = <exe>\\config\\user-queries.txt",
+                    UserQueries.PathFor("C:\\App").EndsWith(System.IO.Path.Combine("config", "user-queries.txt"), StringComparison.OrdinalIgnoreCase));
+            }
+            finally
+            {
+                try { System.IO.Directory.Delete(customTmpDir, true); }
+                catch { }
+            }
+
             // 2) 参数构造
             LogParserRunner.Options opt = new LogParserRunner.Options();
             opt.LogParserPath = lp;
@@ -81,7 +150,7 @@ namespace LogSentry
 
             // 5) Unknown EventID 空结果不算失败
             QueryItem empty = new QueryItem();
-            empty.Id = "empty"; empty.Label = "空结果"; empty.LogName = "System";
+            empty.Id = "empty"; empty.Label = "空结果";
             empty.Query = "SELECT TimeGenerated FROM System WHERE EventID = 999999";
             System.Threading.CancellationTokenSource c2 = new System.Threading.CancellationTokenSource();
             Task<QueryResult> t2 = runner.RunAsync(opt, empty, c2.Token);
@@ -91,7 +160,7 @@ namespace LogSentry
 
             // 6) 语法错误必须被判失败
             QueryItem bad = new QueryItem();
-            bad.Id = "bad"; bad.Label = "坏查询"; bad.LogName = "System";
+            bad.Id = "bad"; bad.Label = "坏查询";
             bad.Query = "SELECT NoSuchField FROM System";
             System.Threading.CancellationTokenSource c3 = new System.Threading.CancellationTokenSource();
             Task<QueryResult> t3 = runner.RunAsync(opt, bad, c3.Token);
@@ -102,7 +171,7 @@ namespace LogSentry
 
             // 7) 权限不足的 Security 日志：应报失败且不崩
             QueryItem sec = new QueryItem();
-            sec.Id = "sec"; sec.Label = "安全日志"; sec.LogName = "Security";
+            sec.Id = "sec"; sec.Label = "安全日志";
             sec.Query = "SELECT TOP 1 TimeGenerated FROM Security";
             System.Threading.CancellationTokenSource c4 = new System.Threading.CancellationTokenSource();
             Task<QueryResult> t4 = runner.RunAsync(opt, sec, c4.Token);
@@ -111,7 +180,7 @@ namespace LogSentry
 
             // 8) 空白压缩：用真实的 7045 输出验证（手工构造样例容易把空格数写错，测不出真问题）
             QueryItem col = new QueryItem();
-            col.Id = "col_probe"; col.Label = "列宽探测"; col.LogName = "System";
+            col.Id = "col_probe"; col.Label = "列宽探测";
             col.Query = "SELECT TOP 5 TimeGenerated AS 时间, EXTRACT_TOKEN(Strings,0,'|') AS 服务名, "
                 + "EXTRACT_TOKEN(Strings,1,'|') AS 映像路径, EXTRACT_TOKEN(Strings,3,'|') AS 启动类型, "
                 + "EXTRACT_TOKEN(Strings,4,'|') AS 运行账户 FROM System WHERE EventID = 7045";
@@ -189,11 +258,11 @@ namespace LogSentry
 
             // 真实执行：同一查询加不加时间条件，命中条数应该不同
             QueryItem tm = new QueryItem();
-            tm.Id = "time_probe"; tm.Label = "时间探测"; tm.LogName = "System";
+            tm.Id = "time_probe"; tm.Label = "时间探测";
             tm.Query = "SELECT TimeGenerated FROM System WHERE EventID = 7045";
 
             QueryItem tm2 = new QueryItem();
-            tm2.Id = "time_probe2"; tm2.Label = "时间探测(过滤)"; tm2.LogName = "System";
+            tm2.Id = "time_probe2"; tm2.Label = "时间探测(过滤)";
             tm2.Query = tm.Query;
 
             LogParserRunner.Options optAll = new LogParserRunner.Options();
@@ -332,7 +401,7 @@ namespace LogSentry
             QueryItem fmtItem = new QueryItem();
             fmtItem.Id = "fmt_probe";
             fmtItem.Label = "格式自检";
-            fmtItem.LogName = "System";
+
             fmtItem.Query = fmtQuery;
             string[] formats = { "NAT", "CSV", "TSV", "XML", "W3C" };
             LogParserRunner fmtRunner = new LogParserRunner();
@@ -367,7 +436,7 @@ namespace LogSentry
             QueryItem emptyItem = new QueryItem();
             emptyItem.Id = "empty_probe";
             emptyItem.Label = "空结果自检";
-            emptyItem.LogName = "System";
+
             emptyItem.Query = "SELECT TimeGenerated FROM System WHERE EventID = 9999";
             for (int fi = 0; fi < formats.Length; fi++)
             {
@@ -452,7 +521,6 @@ namespace LogSentry
             QueryItem manItem = new QueryItem();
             manItem.Id = "manual";
             manItem.Label = "手动命令自检";
-            manItem.LogName = "(手动输入)";
             manItem.Query = "SELECT TOP 3 TimeGenerated, EventID, EXTRACT_TOKEN(Strings,0,'|') AS 服务名"
                 + " FROM System WHERE EventID = 7045";
             LogParserRunner.Options manOpt = new LogParserRunner.Options();

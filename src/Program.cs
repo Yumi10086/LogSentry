@@ -18,15 +18,13 @@ namespace LogSentry
         {
             // 老机器（Win7 未打补丁 / Win8.1 精简版）可能没有 .NET Framework 4.x：
             // 那种机器上本程序连这一行都到不了，CLR 会先弹「初始化错误」。
-            // 真正的检测在便携版外壳（src/Launcher.cs）里做：外壳按 .NET 2.0 编译，
-            // 先解压，再确认本机有 4.x，没有就启动随包的原生离线安装包。
-            // 这里只兜底：CLR 能起来但版本低于 4.0 时给出安装指引。
+            // 发布形式是 zip：解压后同目录就带一份 NDP48 离线安装包（完整包才有）。
+            // 这里只兜底：CLR 能起来但版本低于 4.5 时给出安装指引。
             if (!RuntimeIsUsable())
             {
                 MessageBox.Show(
-                    "当前系统的 .NET Framework 版本过低，LogSentry 需要 .NET Framework 4.0 或更高版本。\r\n\r\n"
-                    + "请先安装 .NET Framework 4.x 后再运行本程序；\r\n"
-                    + "便携版（LogSentry_Portable.exe）会自动检测并安装随包的 .NET Framework 4。",
+                    "当前系统的 .NET Framework 版本过低，LogSentry 需要 .NET Framework 4.5 或更高版本。\r\n\r\n"
+                    + "请先双击同目录的 NDP48-x86-x64-AllOS-ENU.exe 安装，装完重启一次再运行本程序。",
                     AppTitle, MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }

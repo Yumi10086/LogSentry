@@ -1,4 +1,4 @@
-## LogSentry v1.0 — Windows 日志一把梭分析
+﻿## LogSentry v1.0 — Windows 日志一把梭分析
 
 便携式 Windows 日志痕迹分析工具。勾选多个检测项 → 一键顺序执行 → 同一窗口对比
 「攻击失败痕迹」和「攻击成功痕迹」，快速判断爆破是否得手、账户是否被创建、服务是否被安装。
@@ -10,14 +10,17 @@ Win10 / Win11 自带 .NET Framework 4.8，双击即用，自动 UAC 提权。
 
 | 文件 | 说明 | 大小 | SHA256 |
 | --- | --- | --- | --- |
-| `LogSentry_Portable.exe` | **推荐**：单文件便携版（7-Zip SFX = `7z.sfx` + 配置 + `payload.7z`，含 .NET Framework 4.8 离线安装包；解压器是 7-Zip 原生模块，不依赖任何 .NET） | 122364698 B | `7FFFFF23A66B6A2954384020E82ABB0F4D93F58C861C171EDC0CA91392A539E7` |
-| `LogSentry_v1.0.zip` | 绿色文件夹版全套（含 `.NET Framework 4.8` 离线安装包 `NDP48-x86-x64-AllOS-ENU.exe`），解压后用 `LogSentry.exe` | 122360482 B | `6D9504CAF2E265D34F0BEFCDA44B7858ADAD7078328C68EC15C649883DB198C8` |
+| `LogSentry_v1.0.zip` | **推荐**：绿色包，5 文件（`LogSentry.exe` / `LogParser.exe` / `queries.txt` / `LogParser.chm` / `使用说明.txt`），解压即用，机器上已有 .NET Framework 4.5+ 就够 | 1,088,382 B | `A7E72007C2AB0C14E24A2E9B97C38A17D485969C92B47711074A2EFCACE9073C` |
+| `LogSentry_v1.0_full.zip` | 完整包，6 文件，多带一个 `.NET Framework 4.8` 离线安装包 `NDP48-x86-x64-AllOS-ENU.exe`（Win7 未打补丁 / 无 .NET 现场用） | 122,369,464 B | `2A18E5CA71F0D0E0EF02207E1B486D7E918BF178CE1A1E6D20B667B9CD9F31A1` |
 
-单文件 SHA256 校验：
+SHA256 校验：
 
 ```powershell
-Get-FileHash .\LogSentry_Portable.exe -Algorithm SHA256
+Get-FileHash .\LogSentry_v1.0.zip      -Algorithm SHA256
+Get-FileHash .\LogSentry_v1.0_full.zip -Algorithm SHA256
 ```
+
+不再提供单文件 exe：116.7 MB 超过 GitHub 100 MB 上限，且自解压包只是弹个「Extract to:」对话框，省不下任何步骤。
 
 ### 内置检测项（26 项，可自由勾选）
 
@@ -38,9 +41,9 @@ Get-FileHash .\LogSentry_Portable.exe -Algorithm SHA256
 
 ### 使用说明
 
-1. 下载 `LogSentry_Portable.exe`，双击 → 在 7-Zip 的「Extract to:」里选目录（建议 `D:\LogSentry`）→ `Extract`
+1. 下载 `LogSentry_v1.0.zip`（或 `_full.zip`），右键 →「全部解压缩」（解压交给 Windows 资源管理器，不需要任何运行库）
 2. 进入刚解出来的 `LogSentry\` 文件夹，双击 `LogSentry.exe` → UAC 确认 → 界面打开
-   （若弹「需要 .NET Framework v4.0.30319」，先双击同目录的 `NDP48-x86-x64-AllOS-ENU.exe`（.NET Framework 4.8），装完重启一次。只装 4.0 不够：主程序用了 async/await 与 ZipArchive，会报 `TypeLoadException: Could not load type 'System.Runtime.CompilerServices.IAsyncStateMachine'`）
+   （若弹「需要 .NET Framework 4.5 或更高」，先双击同目录的 `NDP48-x86-x64-AllOS-ENU.exe`（.NET Framework 4.8），装完重启一次。只装 4.0 不够：主程序用了 async/await 与 ZipArchive，会报 `TypeLoadException: Could not load type 'System.Runtime.CompilerServices.IAsyncStateMachine'`。Win7 可能要先打 SHA-2 补丁 KB4474419 / KB4490628）
 3. 左栏勾选检测项，例如同时勾上「登录失败 (4625)」与「登录成功 (4624)」
 4. 点 `▶ 开始分析（F5）`，结果区按项分隔显示，末尾给出成功 / 失败 / 命中汇总
 5. 需要留档点「导出结果」，选 xlsx 或 csv
