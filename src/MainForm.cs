@@ -97,6 +97,7 @@ namespace LogSentry
         private DateTime _lastFlush = DateTime.MinValue;
         private long _totalElements = -1;
         private bool _rawColumns;
+        private CheckBox _chkRaw;
 
         // 性能采样（--smoke 打印用，正常使用无影响）
         internal double PerfRunOneMs;
@@ -132,6 +133,7 @@ namespace LogSentry
             BuildUi();
             LoadConfigSafe(null);
             ResolveLogParserPath();
+            LoadUiPrefs();
             UpdatePrivilegeLabel();
         }
 
@@ -463,7 +465,15 @@ namespace LogSentry
             chkRaw.AutoSize = true;
             chkRaw.Margin = new Padding(0, 0, 0, 10);
             chkRaw.Checked = false;
-            chkRaw.CheckedChanged += delegate(object s, EventArgs e) { _rawColumns = chkRaw.Checked; };
+            _chkRaw = chkRaw;
+            chkRaw.CheckedChanged += delegate(object s, EventArgs e)
+            {
+                _rawColumns = chkRaw.Checked;
+                SaveUiPrefs();
+                if (!_running && _rtbOutput != null && _rtbOutput.TextLength > 0)
+                    SetStatus("列宽显示已切换为「" + (_rawColumns ? "原始列宽" : "压缩对齐")
+                        + "」，下次运行生效（这个选择会被记住）", false);
+            };
 
             Label lblTimeHint = new Label();
             lblTimeHint.Text = "时间筛选在上面的筛选条里设置：勾「按时间段筛选」后，本次所有查询都会自动带上 TimeGenerated 区间。";
@@ -1994,6 +2004,58 @@ namespace LogSentry
 
         // ---------------------------------------------------------------- 状态栏
 
+        // ------------------------------------------------------------ 界面偏好
+        // 「原始列宽」这类开关记在 <exe>\config\ui.txt，下次启动沿用；
+        // 文件不存在 / 读不动就用手里的默认值（不勾），绝不因为偏好文件出错而起不来。
+
+        private string UiPrefsPath
+        {
+            get { return Path.Combine(Path.Combine(_exeDir, "config"), "ui.txt"); }
+        }
+
+        private void LoadUiPrefs()
+        {
+            try
+            {
+                string path = UiPrefsPath;
+                if (!File.Exists(path)) return;
+                string[] lines = File.ReadAllLines(path, Encoding.UTF8);
+                for (int i = 0; i < lines.Length; i++)
+                {
+                    string line = lines[i].Trim();
+                    if (line.Length == 0 || line[0] == '#') continue;
+                    int eq = line.IndexOf('=');
+                    if (eq <= 0) continue;
+                    string key = line.Substring(0, eq).Trim();
+                    string val = line.Substring(eq + 1).Trim();
+                    if (key.Equals("rawColumns", StringComparison.OrdinalIgnoreCase))
+                    {
+                        bool on;
+                        if (bool.TryParse(val, out on))
+                        {
+                            if (_chkRaw != null) _chkRaw.Checked = on;   // 会触发事件，同步 _rawColumns
+                            else _rawColumns = on;
+                        }
+                    }
+                }
+            }
+            catch (Exception) { }
+        }
+
+        private void SaveUiPrefs()
+        {
+            try
+            {
+                string path = UiPrefsPath;
+                string dir = Path.GetDirectoryName(path);
+                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                StringBuilder sb = new StringBuilder();
+                sb.AppendLine("# LogSentry 界面偏好（程序自己写，删掉即恢复默认）");
+                sb.AppendLine("rawColumns=" + (_rawColumns ? "true" : "false"));
+                File.WriteAllText(path, sb.ToString(), new UTF8Encoding(true));
+            }
+            catch (Exception) { }
+        }
         private void SetStatus(string text, bool busy)
         {
             if (_lblStatus == null) return;
@@ -2526,12 +2588,14 @@ namespace LogSentry
                 for (int i = 0; i < Math.Min(_config.Errors.Count, 20); i++)
                     WriteLine("   ! " + _config.Errors[i], Color.FromArgb(235, 170, 60), false);
             }
+            WriteLine(" 输出格式 : " + LogParserRunner.EffectiveFormat(opt)
+                + "    列宽显示 : " + (_rawColumns ? "原始列宽（列间 2 空格）" : "压缩对齐（列间 1 空格）"),
+                Color.FromArgb(150, 158, 170), false);
             if (manual)
             {
                 WriteLine(" 模式     : 手动命令（命令行里的参数优先于“参数与超时”页）", Color.FromArgb(150, 158, 170), false);
                 WriteLine(" 参数     : " + (string.IsNullOrEmpty(opt.ExtraArguments) ? "(默认)" : opt.ExtraArguments),
                     Color.FromArgb(150, 158, 170), false);
-                WriteLine(" 输出格式 : " + LogParserRunner.EffectiveFormat(opt), Color.FromArgb(150, 158, 170), false);
             }
             else
             {
@@ -2590,8 +2654,11 @@ namespace LogSentry
                             int rows = CountDataRows(r.Output, fmt);
                             hitCount++;
                             // 只有 NAT 输出是靠一长串空格对齐列的；CSV/TSV/XML/W3C 压空格反而会动数据。
+                            // NAT 的列宽是按字符数补空格的，中文表头会短一截（实测表头 61 格、
+                            // 数据行 44 格），所以这里统一按「显示宽度」重排：勾不勾都对齐，
+                            // 区别只剩列间距（原始列宽 2 空格 / 压缩对齐 1 空格）。
                             bool nat = LogParserRunner.IsNat(fmt);
-                            string pretty = (_rawColumns || !nat) ? body : LogParserRunner.CollapsePadding(body);
+                            string pretty = nat ? LogParserRunner.AlignTable(body, _rawColumns ? 2 : 1) : body;
                             PerfPrepMs += pPrep.Elapsed.TotalMilliseconds;
 
                             WriteLine("    命中 " + rows + " 行    耗时：" + r.Elapsed.TotalSeconds.ToString("0.00") + "s",

@@ -10,8 +10,8 @@ Win10 / Win11 自带 .NET Framework 4.8，双击即用，自动 UAC 提权。
 
 | 文件 | 说明 | 大小 | SHA256 |
 | --- | --- | --- | --- |
-| `LogSentry_v1.0.zip` | **推荐**：绿色包，5 文件（`LogSentry.exe` / `LogParser.exe` / `queries.txt` / `LogParser.chm` / `使用说明.txt`），解压即用，机器上已有 .NET Framework 4.5+ 就够 | 1,088,382 B | `A7E72007C2AB0C14E24A2E9B97C38A17D485969C92B47711074A2EFCACE9073C` |
-| `LogSentry_v1.0_full.zip` | 完整包，6 文件，多带一个 `.NET Framework 4.8` 离线安装包 `NDP48-x86-x64-AllOS-ENU.exe`（Win7 未打补丁 / 无 .NET 现场用） | 122,369,464 B | `2A18E5CA71F0D0E0EF02207E1B486D7E918BF178CE1A1E6D20B667B9CD9F31A1` |
+| `LogSentry_v1.0.zip` | **推荐**：绿色包，5 文件（`LogSentry.exe` / `LogParser.exe` / `queries.txt` / `LogParser.chm` / `使用说明.txt`），解压即用，机器上已有 .NET Framework 4.5+ 就够 | 1,089,732 B | `2256219CAADDE327984BD05FBEAE107D7CA7F39F46A91E4DA48F7F96748792A6` |
+| `LogSentry_v1.0_full.zip` | 完整包，6 文件，多带一个 `.NET Framework 4.8` 离线安装包 `NDP48-x86-x64-AllOS-ENU.exe`（Win7 未打补丁 / 无 .NET 现场用） | 122,370,814 B | `8349729B17B46ADC1D6BAD3EFF5C5E28D3C0AC735ED5DC52470C07003C4F0655` |
 
 SHA256 校验：
 

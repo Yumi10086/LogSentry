@@ -222,6 +222,51 @@ namespace LogSentry
             Check("没有残留的多余空格", longRuns == 0);
             if (longRuns > 0) Console.WriteLine("    ! 有 " + longRuns + " 行仍含 3 个连续空格");
 
+            // 8b) 列表对齐：LogParser 的 NAT 列宽按**字符数**补空格，中文表头（「目标用户」4 字
+            //     在等宽字体里占 8 格）就撑不对，实测表头行 61 格、数据行 44 格 —— 界面统一改走
+            //     AlignTable 按显示宽度重排，这里断言重排后每一行的显示宽度完全一致。
+            string aligned1 = LogParserRunner.AlignTable(body8, 1);
+            string aligned2 = LogParserRunner.AlignTable(body8, 2);
+            string[] aLines = aligned1.Replace("\r\n", "\n").Split('\n');
+            int aMax = 0, aBad = 0, aRows = 0;
+            for (int i = 0; i < aLines.Length; i++)
+            {
+                if (aLines[i].Trim().Length == 0) continue;
+                int w = LogParserRunner.DisplayWidth(aLines[i]);
+                if (w > aMax) aMax = w;
+            }
+            for (int i = 0; i < aLines.Length; i++)
+            {
+                if (aLines[i].Trim().Length == 0) continue;
+                aRows++;
+                if (LogParserRunner.DisplayWidth(aLines[i]) != aMax) aBad++;
+            }
+            Console.WriteLine("[8b] 对齐后行宽=" + aMax + "  不一致行=" + aBad + "  表格行=" + aRows);
+            for (int i = 0; i < aLines.Length && i < 4; i++)
+                if (aLines[i].Trim().Length > 0) Console.WriteLine("    = | " + aLines[i]);
+            Check("表头与数据行按显示宽度对齐", aBad == 0 && aRows >= 3);
+            Check("宽松模式(2 空格)比紧凑模式(1 空格)更宽",
+                LogParserRunner.DisplayWidth(aligned2.Replace("\r\n", "\n").Split('\n')[0])
+                > LogParserRunner.DisplayWidth(aLines[0]));
+
+            // 字符不能丢：破折号行会被按新列宽重画，其余行去掉空格后必须与原文逐字一致
+            string[] rLines2 = body8.Replace("\r\n", "\n").Split('\n');
+            StringBuilder alText = new StringBuilder(); StringBuilder rawText = new StringBuilder();
+            for (int i = 0; i < aLines.Length; i++)
+            {
+                string la = aLines[i].Trim();
+                string lr = i < rLines2.Length ? rLines2[i].Trim() : "";
+                if (la.Length == 0) continue;
+                // 破折号行会被按新列宽重画（宽度按最长单元格算，可能比原来多一格），跳过不比较
+                string dashA = la.Replace("-", "").Replace(" ", "");
+                string dashR = lr.Replace("-", "").Replace(" ", "");
+                if (dashA.Length == 0) continue;
+                if (dashR.Length == 0) continue;
+                alText.Append(StripSpaces(la));
+                rawText.Append(StripSpaces(lr));
+            }
+            Check("对齐没切丢字符", alText.ToString() == rawText.ToString());
+
             // 9) 时间筛选：语法注入 + 真实查询条数必须真的下降
             string cond = LogParserRunner.BuildTimeCondition(
                 new DateTime(2026, 10, 1, 0, 0, 0), new DateTime(2026, 10, 31, 23, 59, 59));

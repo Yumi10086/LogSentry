@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -730,6 +730,129 @@ namespace LogSentry
             return sb.ToString();
         }
 
+        /// <summary>
+        /// 把 NAT 表格按「显示宽度」重排成等宽列（中文按 2 格算）。
+        /// 为什么不能直接照抄 LogParser 的输出：它的列宽是按**字符数**补空格的，
+        /// 「目标用户」4 个字只补 4 格，而等宽字体里它占 8 格 —— 实测表头行 61 格、
+        /// 数据行 44 格，看上去就是「明显没对齐」，勾不勾原始列宽都救不回来。
+        /// 这里用表头下面那行破折号（纯 ASCII）还原每列的字符区间，切出单元格，
+        /// 再按「中文算 2 格」重新补齐，表头和数据就真对齐了。
+        /// 形状不认识（没有破折号行 / 列少于 2）就退回 CollapsePadding。
+        /// gap：列之间的空格数（1 紧凑，2 宽松）。
+        /// </summary>
+        public static string AlignTable(string body, int gap)
+        {
+            if (string.IsNullOrEmpty(body)) return body;
+            if (gap < 1) gap = 1;
+            string[] lines = body.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+
+            int dash = -1;
+            for (int i = 1; i < lines.Length; i++)
+            {
+                string t = lines[i].TrimEnd();
+                if (t.Length < 5) continue;
+                bool bad = false;
+                int dashes = 0, spaces = 0;
+                for (int k = 0; k < t.Length; k++)
+                {
+                    char c = t[k];
+                    if (c == '-') dashes++;
+                    else if (c == ' ') spaces++;
+                    else { bad = true; break; }
+                }
+                if (!bad && dashes >= 5 && spaces >= 1) { dash = i; break; }
+            }
+            if (dash < 1) return CollapsePadding(body);
+
+            List<int[]> spans = new List<int[]>();
+            string dashLine = lines[dash];
+            int p = 0;
+            while (p < dashLine.Length)
+            {
+                if (dashLine[p] != '-') { p++; continue; }
+                int s = p;
+                while (p < dashLine.Length && dashLine[p] == '-') p++;
+                spans.Add(new int[] { s, p - s });
+            }
+            if (spans.Count < 2) return CollapsePadding(body);
+
+            int head = dash - 1;
+            int end = lines.Length - 1;
+            for (int i = dash + 1; i < lines.Length; i++)
+            {
+                if (lines[i].Trim().Length == 0) { end = i - 1; break; }
+            }
+            if (end < dash) end = dash;
+
+            int n = spans.Count;
+            List<int> rowNo = new List<int>();
+            List<string[]> rows = new List<string[]>();
+            for (int i = head; i <= end; i++)
+            {
+                if (i == dash) continue;
+                string line = lines[i];
+                string[] cells = new string[n];
+                for (int j = 0; j < n; j++)
+                {
+                    int cs = spans[j][0];
+                    int ce = (j == n - 1) ? line.Length : Math.Min(line.Length, cs + spans[j][1]);
+                    if (cs >= line.Length) { cells[j] = ""; continue; }
+                    if (ce < cs) ce = cs;
+                    cells[j] = line.Substring(cs, ce - cs).Trim();
+                }
+                rowNo.Add(i);
+                rows.Add(cells);
+            }
+
+            int[] w = new int[n];
+            for (int r = 0; r < rows.Count; r++)
+                for (int j = 0; j < n; j++)
+                {
+                    int cw = DisplayWidth(rows[r][j]);
+                    if (cw > w[j]) w[j] = cw;
+                }
+
+            StringBuilder sb = new StringBuilder(body.Length + 64);
+            for (int i = 0; i < lines.Length; i++)
+            {
+                if (i < head || i > end)
+                {
+                    sb.Append(lines[i]).Append('\n');
+                    continue;
+                }
+                if (i == dash)
+                {
+                    for (int j = 0; j < n; j++)
+                    {
+                        if (j > 0) sb.Append(new string(' ', gap));
+                        sb.Append(new string('-', Math.Max(w[j], 1)));
+                    }
+                    sb.Append('\n');
+                    continue;
+                }
+                string[] cells = rows[rowNo.IndexOf(i)];
+                StringBuilder line = new StringBuilder();
+                for (int j = 0; j < n; j++)
+                {
+                    if (j > 0) line.Append(new string(' ', gap));
+                    line.Append(cells[j]);
+                    int pad = w[j] - DisplayWidth(cells[j]);
+                    if (pad > 0) line.Append(new string(' ', pad));
+                }
+                sb.Append(line.ToString()).Append('\n');
+            }
+            return sb.ToString().TrimEnd('\n');
+        }
+
+        /// <summary>等宽显示宽度：ASCII/半角算 1 格，中文等全角算 2 格。</summary>
+        public static int DisplayWidth(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return 0;
+            int w = 0;
+            for (int i = 0; i < s.Length; i++)
+                w += (s[i] > 127) ? 2 : 1;
+            return w;
+        }
         /// <summary>LogParser 无匹配行时 stdout 为空或只有空白。</summary>
         public static bool IsEmptyResult(string cleaned)
         {

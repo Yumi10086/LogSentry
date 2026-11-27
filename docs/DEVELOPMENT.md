@@ -21,7 +21,7 @@
 | 语法错误 | stderr/stdout 出现 `Error: SELECT clause: Syntax Error: unknown field 'X'`，exit 非 0 |
 | 空结果 | stdout 为空、exit 0 → 视为成功但标注「无匹配记录」 |
 | 非管理员读 Security | `Error opening event log "Security": 客户端没有所需的特权。` → 翻译成中文处置建议 |
-| 列对齐 | NAT 用空格补齐，且列宽按**字符数**算，中文值会溢出到下一列；因此不做硬切列，只把 ≥2 个连续空格压成 2 个（`CollapsePadding`），保证不切坏路径 |
+| 列对齐 | NAT 按**字符个数**补空格（中文表头只算 1 格），等宽字体里表头与数据必然错位；因此 `AlignTable(body, gap)` 用破折号行还原列区间，按 `DisplayWidth`（中文算 2）重排、列间补 gap 个空格，每行显示宽度完全一致。勾「原始列宽」= gap:2，不勾 = gap:1，两种都对齐；选择存 `config\ui.txt` |
 | `-o:CSV` 加 `-rtp:-1` 报 `Error: invalid parameter "rtp"`（exit 87） | `-rtp` 是 NAT 专用参数；导出 CSV 前必须剥掉（`StripNatOnlyArguments`），并可用 `-stats:off` 关掉尾部统计块 |
 | `-o:TSV` / `-o:XML` 带 `-rtp:-1` 同样 exit 87 | 同上：`BuildArguments` 现在只要输出格式不是 NAT 就自动剥掉 `-rtp`，界面里留着 `-rtp:-1` 也不会报错 |
 | `-o:XML` 读出来是 ` ? x m l …` 一个字符夹一个空格 | 那是 UTF-16LE（带 `FF FE` BOM，声明 `encoding="ISO-10646-UCS-2"`）；`EncodingForFormat` 对 XML 返回 `Encoding.Unicode` |
@@ -295,8 +295,8 @@ foreach ($f in $packed) {
 
 | 包 | 字节 | SHA256 |
 | --- | --- | --- |
-| `.pkg/LogSentry_v1.0.zip` | 1,088,382 | `A7E72007C2AB0C14E24A2E9B97C38A17D485969C92B47711074A2EFCACE9073C` |
-| `.pkg/LogSentry_v1.0_full.zip` | 122,369,464 | `2A18E5CA71F0D0E0EF02207E1B486D7E918BF178CE1A1E6D20B667B9CD9F31A1` |
+| `.pkg/LogSentry_v1.0.zip` | 1,089,732 | `2256219CAADDE327984BD05FBEAE107D7CA7F39F46A91E4DA48F7F96748792A6` |
+| `.pkg/LogSentry_v1.0_full.zip` | 122,370,814 | `8349729B17B46ADC1D6BAD3EFF5C5E28D3C0AC735ED5DC52470C07003C4F0655` |
 
 > 每次重新打包 SHA256 都会变（zip 里内嵌了文件修改时间），上面的值只用于核对同一次构建。
 
